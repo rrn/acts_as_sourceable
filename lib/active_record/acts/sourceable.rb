@@ -15,11 +15,19 @@ module ActiveRecord
             has_many :sites, :through => :sourceable_sites
 
             after_save :record_source
+
+            SourceableSite.sourceable_classes << self
           EOV
+        end
+        
+        def garbage_collect
+          # Destroy all entries of this class which no longer have a SourceableSite
+          destroy_all("NOT EXISTS (SELECT * FROM sourceable_sites WHERE sourceable_sites.sourceable_type = '#{class_name}' AND sourceable_sites.sourceable_id = #{table_name}.id)")
         end
       end
 
       module InstanceMethods
+        
         private
         def record_source
           raise 'acts_as_sourceable cannot save because no global variable $SITE has been set for this conversion session.' if $SITE.nil?
