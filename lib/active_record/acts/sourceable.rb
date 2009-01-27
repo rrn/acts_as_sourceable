@@ -30,11 +30,13 @@ module ActiveRecord
         
         private
         def record_source
-          raise 'acts_as_sourceable cannot save because no global variable $SITE has been set for this conversion session.' if $SITE.nil?
-          sourceable_site = SourceableSite.new
-          sourceable_site.site = $SITE
-          sourceable_site.sourceable = self
-          sourceable_site.save!
+          if SourceableSite.record
+            raise 'acts_as_sourceable cannot save because no global variable $SITE has been set for this conversion session.' if $SITE.nil?
+            sourceable_site = SourceableSite.new
+            sourceable_site.site = $SITE
+            sourceable_site.sourceable = self
+            sourceable_site.save!
+          end
         end
       end 
     end
