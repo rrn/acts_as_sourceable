@@ -1,7 +1,8 @@
 class SourceableSite < ActiveRecord::Base
-
-  acts_as_replaceable :conditions => [:sourceable_type, :sourceable_id, :site_id]
-  
+  #Tristan: Ugly hack until someone takes the replaceable out of the sourceable, plugins are standalone, son!
+  if defined?(RAILS_ENV)
+    acts_as_replaceable :conditions => [:sourceable_type, :sourceable_id, :site_id]
+  end
   belongs_to :sourceable, :polymorphic => true
   belongs_to :site
 

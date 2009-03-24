@@ -37,13 +37,13 @@ module ActiveRecord
           # Called on destroy to determine whether or not the record should be destroyed
           # Allows models to add a condition for destruction that can prevent the model from being garbage collected
           def destroy_condition
-            case self.class._acts_as_ordered_options[:condition]
+            case self.class._acts_as_sourceable_options[:condition]
             when Proc
-              return self.class._acts_as_ordered_options[:condition].call
+              return self.class._acts_as_sourceable_options[:condition].call
             when nil
               return true
             else
-              return self.class._acts_as_ordered_options[:condition]
+              return self.class._acts_as_sourceable_options[:condition]
             end
           end
 
