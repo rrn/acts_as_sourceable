@@ -11,13 +11,6 @@ module ActiveRecord
           has_many :sources, :through => :sourceable_sites, :source => :site
 
           after_save :record_source
-          before_destroy :destroy_condition
-
-          cattr_accessor :_acts_as_sourceable_options
-
-          # Keep track of the options we passed
-          options.assert_valid_keys :condition
-          self._acts_as_sourceable_options = options
 
           # Keep a list of all classes that are sourceable
           SourceableSite.sourceable_classes << self
@@ -33,19 +26,6 @@ module ActiveRecord
         module InstanceMethods
 
           private
-
-          # Called on destroy to determine whether or not the record should be destroyed
-          # Allows models to add a condition for destruction that can prevent the model from being garbage collected
-          def destroy_condition
-            case self.class._acts_as_sourceable_options[:condition]
-            when Proc
-              return self.class._acts_as_sourceable_options[:condition].call(self)
-            when nil
-              return true
-            else
-              return self.class._acts_as_sourceable_options[:condition]
-            end
-          end
 
           def record_source
             if SourceableSite.record
