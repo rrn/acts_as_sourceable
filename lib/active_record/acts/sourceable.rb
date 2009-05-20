@@ -39,7 +39,7 @@ module ActiveRecord
           def destroy_condition
             case self.class._acts_as_sourceable_options[:condition]
             when Proc
-              return self.class._acts_as_sourceable_options[:condition].call
+              return self.class._acts_as_sourceable_options[:condition].call(self)
             when nil
               return true
             else
