@@ -7,19 +7,19 @@ module ActiveRecord
           extend ClassMethods unless (class << self; included_modules; end).include?(ClassMethods)
           include InstanceMethods unless included_modules.include?(InstanceMethods)
 
-          has_many :sourceable_sites, :as => :sourceable
-          has_many :sources, :through => :sourceable_sites, :source => :site
+          has_many :sourceable_institutions, :as => :sourceable
+          has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
           after_save :record_source
 
           # Keep a list of all classes that are sourceable
-          SourceableSite.sourceable_classes << self
+          SourceableInstitution.sourceable_classes << self
         end
 
         module ClassMethods
           def garbage_collect
-            # Destroy all entries of this class which no longer have a SourceableSite
-            destroy_all("NOT EXISTS (SELECT * FROM sourceable_sites WHERE sourceable_sites.sourceable_type = '#{class_name}' AND sourceable_sites.sourceable_id = #{table_name}.id)")
+            # Destroy all entries of this class which no longer have a SourceableInstitution
+            destroy_all("NOT EXISTS (SELECT * FROM sourceable_institution WHERE sourceable_institutions.sourceable_type = '#{class_name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
           end
         end
 
@@ -28,12 +28,12 @@ module ActiveRecord
           private
 
           def record_source
-            if SourceableSite.record
-              raise 'acts_as_sourceable cannot save because no global variable $SITE has been set for this conversion session.' if $SITE.nil?
-              sourceable_site = SourceableSite.new
-              sourceable_site.site = $SITE
-              sourceable_site.sourceable = self
-              sourceable_site.save!
+            if SourceableInstitution.record
+              raise 'acts_as_sourceable cannot save because no global variable $INSTITUTION has been set for this conversion session.' if $INSTITUTION.nil?
+              sourceable_institution = SourceableInstitution.new
+              sourceable_institution.institution = $INSTITUTION
+              sourceable_institution.sourceable = self
+              sourceable_institution.save!
             end
           end
         end
