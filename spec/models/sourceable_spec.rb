@@ -3,7 +3,7 @@ require File.expand_path(File.join(File.dirname(__FILE__), '../spec_helper'))
 describe "Sourceable" do
   before :all do
     connect
-    $SITE = Site.create(:name =>"MOA", :short_name => "MOA")
+    $HOLDING_INSTITUTION = HoldingInstitution.create(:name =>"MOA", :short_name => "MOA")
   end
   before(:each) do
     @goat = Material.create(:name=>'goat', :derived => true, :definition => nil)
