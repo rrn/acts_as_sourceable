@@ -1,8 +1,5 @@
 class SourceableInstitution < ActiveRecord::Base
-  #Tristan: Ugly hack until someone takes the replaceable out of the sourceable, plugins are standalone, son!
-  if defined?(RAILS_ENV)
-    acts_as_replaceable :conditions => [:sourceable_type, :sourceable_id, :holding_institution_id]
-  end
+
   belongs_to :sourceable, :polymorphic => true
   belongs_to :holding_institution
 
@@ -12,6 +9,13 @@ class SourceableInstitution < ActiveRecord::Base
   @@sourceable_classes = Array.new
   cattr_reader :sourceable_classes
   cattr_accessor :record
+
+  # No need to save a new entry if one already exists
+  def save
+    unless SourceableInstitution.exists?(:sourceable_type => sourceable_type, :sourceable_id => sourceable_id, :holding_institution_id => holding_institution_id)
+      super
+    end
+  end
   
   def self.garbage_collect
     @@sourceable_classes.each do |sourceable_class|
