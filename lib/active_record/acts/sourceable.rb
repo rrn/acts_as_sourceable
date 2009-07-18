@@ -19,7 +19,7 @@ module ActiveRecord
         module ClassMethods
           def garbage_collect
             # Destroy all entries of this class which no longer have a SourceableInstitution
-            destroy_all("NOT EXISTS (SELECT * FROM sourceable_institution WHERE sourceable_institutions.sourceable_type = '#{class_name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
+            destroy_all("NOT EXISTS (SELECT * FROM sourceable_institutions WHERE sourceable_institutions.sourceable_type = '#{class_name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
           end
         end
 
