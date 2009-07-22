@@ -33,7 +33,7 @@ module ActiveRecord
               sourceable_institution = SourceableInstitution.new
               sourceable_institution.holding_institution = $HOLDING_INSTITUTION
               sourceable_institution.sourceable = self
-              sourceable_institution.save!
+              sourceable_institution.save
             end
           end
         end
