@@ -18,4 +18,15 @@ class SourceableInstitution < ActiveRecord::Base
       puts "done"
     end
   end
+
+  def self.unsourced(*args)
+    classes = args.present? ? args : @@sourceable_classes
+    sql = []
+    
+    for sourceable_class in classes
+      sql << "SELECT '#{sourceable_class.class_name}' AS sourceable_type, #{sourceable_class.table_name}.id AS sourceable_id FROM #{sourceable_class.table_name} LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{sourceable_class.class_name}' AND sourceable_institutions.sourceable_id = #{sourceable_class.table_name}.id WHERE sourceable_institutions.id IS NULL"
+    end
+    
+    ActiveRecord::Base.connection.execute(sql.join(" UNION "))
+  end
 end
