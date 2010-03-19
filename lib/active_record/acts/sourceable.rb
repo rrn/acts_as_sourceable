@@ -10,6 +10,8 @@ module ActiveRecord
           has_many :sourceable_institutions, :as => :sourceable
           has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
+          named_scope :unsourced, {:joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{class_name}' AND #{table_name}.id = sourceable_institutions.sourceable_id", :conditions => "sourceable_institutions.id IS NULL"}
+          
           after_save :record_source
 
           # Keep a list of all classes that are sourceable
@@ -17,10 +19,6 @@ module ActiveRecord
         end
 
         module ClassMethods
-          def unsourced
-            all(:joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{class_name}' AND #{table_name}.id = sourceable_institutions.sourceable_id", :conditions => "sourceable_institutions.id IS NULL")
-          end
-          
           def garbage_collect
             # Destroy all entries of this class which no longer have a SourceableInstitution
             destroy_all("NOT EXISTS (SELECT * FROM sourceable_institutions WHERE sourceable_institutions.sourceable_type = '#{class_name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
