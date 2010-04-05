@@ -10,7 +10,7 @@ module ActiveRecord
           has_many :sourceable_institutions, :as => :sourceable
           has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
-          named_scope :sourced, {:joins => :sources}
+          named_scope :sourced, {:select => "DISTINCT #{table_name}.*", :joins => :sources}
           named_scope :unsourced, {:joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{class_name}' AND #{table_name}.id = sourceable_institutions.sourceable_id", :conditions => "sourceable_institutions.id IS NULL #{"AND #{table_name}.derived = false" if column_names.include?('derived')}"}
           
           after_save :record_source
