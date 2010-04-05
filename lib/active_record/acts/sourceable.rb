@@ -12,7 +12,7 @@ module ActiveRecord
 
           named_scope :sourced, {:select => "DISTINCT #{table_name}.*", :joins => :sources}
           named_scope :unsourced, {:joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{class_name}' AND #{table_name}.id = sourceable_institutions.sourceable_id", :conditions => "sourceable_institutions.id IS NULL #{"AND #{table_name}.derived = false" if column_names.include?('derived')}"}
-          
+
           after_save :record_source
 
           cattr_accessor :cache_flag
@@ -29,14 +29,14 @@ module ActiveRecord
           end
 
           def unsource
-            update_all("#{cache_flag} = false") if cache_flag
+            update_all("#{self.cache_flag} = false", ["holding_institution_id = ?", $HOLDING_INSTITUTION.id]) if self.cache_flag
           end
         end
 
         module InstanceMethods
 
           private
-
+          
           def record_source
             if SourceableInstitution.record
               raise 'acts_as_sourceable cannot save because no global variable $INSTITUTION has been set for this conversion session.' if $HOLDING_INSTITUTION.nil?
@@ -44,8 +44,8 @@ module ActiveRecord
               sourceable_institution.holding_institution = $HOLDING_INSTITUTION
               sourceable_institution.sourceable = self
               sourceable_institution.save
-             
-              update_attribute(:cache_flag, true) if self.class.cache_flag
+
+              self.class.update_all("#{self.class.cache_flag} = true", ["id = ?", id]) if self.class.cache_flag
             end
           end
         end
