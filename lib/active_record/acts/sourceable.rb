@@ -15,6 +15,9 @@ module ActiveRecord
           
           after_save :record_source
 
+          cattr_accessor :cache_flag
+          self.cache_flag = options[:cache_flag]
+          
           # Keep a list of all classes that are sourceable
           SourceableInstitution.sourceable_classes << self
         end
@@ -23,6 +26,10 @@ module ActiveRecord
           def garbage_collect
             # Destroy all entries of this class which no longer have a SourceableInstitution
             destroy_all("NOT EXISTS (SELECT * FROM sourceable_institutions WHERE sourceable_institutions.sourceable_type = '#{class_name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
+          end
+
+          def unsource
+            update_all("#{cache_flag} = false") if cache_flag
           end
         end
 
@@ -37,6 +44,8 @@ module ActiveRecord
               sourceable_institution.holding_institution = $HOLDING_INSTITUTION
               sourceable_institution.sourceable = self
               sourceable_institution.save
+             
+              update_attribute(:cache_flag, true) if self.class.cache_flag
             end
           end
         end

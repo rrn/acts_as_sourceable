@@ -11,6 +11,14 @@ class SourceableInstitution < ActiveRecord::Base
   cattr_reader :sourceable_classes
   cattr_accessor :record
 
+  def self.unsource_all(institution)
+    delete_all(["holding_institution_id = ?", institution.id])
+
+    @@sourceable_classes.each do |sourceable_class|
+      sourceable_class.unsource
+    end
+  end
+  
   def self.garbage_collect
     @@sourceable_classes.each do |sourceable_class|
       print "Garbage Collecting #{sourceable_class.name}..."
