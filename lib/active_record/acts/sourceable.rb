@@ -7,7 +7,7 @@ module ActiveRecord
           extend ClassMethods unless (class << self; included_modules; end).include?(ClassMethods)
           include InstanceMethods unless included_modules.include?(InstanceMethods)
 
-          has_many :sourceable_institutions, :as => :sourceable
+          has_many :sourceable_institutions, :as => :sourceable, :dependent => :destroy
           has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
           named_scope :sourced, {:select => "DISTINCT #{table_name}.*", :joins => :sourceable_institutions}
