@@ -15,11 +15,41 @@ module ActiveRecord
 
           after_save :record_source
 
+          if options[:uses]
+            cattr_accessor :uses
+            self.uses = options[:uses]
+
+            named_scope :unused, {:joins => unused_joins(options[:uses]), :conditions => unused_conditions(options[:uses])}
+          end
+
           cattr_accessor :cache_flag
           self.cache_flag = options[:cache_flag]
           
           # Keep a list of all classes that are sourceable
           SourceableInstitution.sourceable_classes << self
+        end
+
+        def unused_joins(uses)
+          uses.collect do |use|
+            case use
+            when 'items'
+              "LEFT OUTER JOIN flattened_item_#{table_name} ON flattened_item_#{table_name}.#{table_name.singularize}_id = #{table_name}.id"
+            when 'user_submissions'
+              "LEFT OUTER JOIN user_submissions ON user_submissions.user_submittable_type = '#{class_name}' AND user_submissions.user_submittable_id = #{table_name}.id"
+            when 'alternate_names'
+              "LEFT OUTER JOIN alternate_names ON alternate_names.alternate_nameable_type = '#{class_name}' AND alternate_names.alternate_nameable_id = #{table_name}.id"
+            end
+          end
+        end
+
+        def unused_conditions(uses)
+          conditions_hash = {}
+          
+          uses.each do |use|
+            conditions_hash[use] = {:id => nil}
+          end
+
+          return conditions_hash
         end
 
         module ClassMethods
