@@ -36,8 +36,12 @@ module ActiveRecord
               "LEFT OUTER JOIN flattened_item_#{table_name} AS items ON items.#{table_name.singularize}_id = #{table_name}.id"
             when 'user_submissions'
               "LEFT OUTER JOIN user_submissions ON user_submissions.user_submittable_type = '#{class_name}' AND user_submissions.user_submittable_id = #{table_name}.id"
+            when 'discussions'
+              "LEFT OUTER JOIN discussions ON discussions.discussable_type = '#{class_name}' AND discussions.discussable_id = #{table_name}.id"
             when 'alternate_names'
               "LEFT OUTER JOIN alternate_names ON alternate_names.alternate_nameable_type = '#{class_name}' AND alternate_names.alternate_nameable_id = #{table_name}.id"
+            when 'project_items'
+              "LEFT OUTER JOIN project_items ON project_items.item_id = #{table_name}.id"
             end
           end
         end
