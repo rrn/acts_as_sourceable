@@ -33,7 +33,7 @@ module ActiveRecord
           uses.collect do |use|
             case use
             when 'items'
-              "LEFT OUTER JOIN flattened_item_#{table_name} ON flattened_item_#{table_name}.#{table_name.singularize}_id = #{table_name}.id"
+              "LEFT OUTER JOIN flattened_item_#{table_name} AS items ON items.#{table_name.singularize}_id = #{table_name}.id"
             when 'user_submissions'
               "LEFT OUTER JOIN user_submissions ON user_submissions.user_submittable_type = '#{class_name}' AND user_submissions.user_submittable_id = #{table_name}.id"
             when 'alternate_names'
