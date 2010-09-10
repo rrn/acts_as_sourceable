@@ -32,7 +32,7 @@ class SourceableInstitution < ActiveRecord::Base
     sql = []
     
     for sourceable_class in classes
-      sql << "SELECT '#{sourceable_class.class_name}' AS sourceable_type, #{sourceable_class.table_name}.id AS sourceable_id FROM #{sourceable_class.table_name} LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{sourceable_class.class_name}' AND sourceable_institutions.sourceable_id = #{sourceable_class.table_name}.id WHERE sourceable_institutions.id IS NULL #{"AND #{sourceable_class.table_name}.derived = false" if sourceable_class.column_names.include?('derived')}"
+      sql << "SELECT '#{sourceable_class.class.name}' AS sourceable_type, #{sourceable_class.table_name}.id AS sourceable_id FROM #{sourceable_class.table_name} LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{sourceable_class.class.name}' AND sourceable_institutions.sourceable_id = #{sourceable_class.table_name}.id WHERE sourceable_institutions.id IS NULL #{"AND #{sourceable_class.table_name}.derived = false" if sourceable_class.column_names.include?('derived')}"
     end
     
     ActiveRecord::Base.connection.execute(sql.join(" UNION "))
