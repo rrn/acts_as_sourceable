@@ -11,7 +11,7 @@ module ActiveRecord
           has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
           named_scope :sourced, {:select => "DISTINCT #{table_name}.*", :joins => :sourceable_institutions}
-          named_scope :unsourced, {:select => "DISTINCT #{table_name}.*", :joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{self.class.name}' AND #{table_name}.id = sourceable_institutions.sourceable_id #{"LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name}.id = flattened_item_#{table_name}.#{table_name.singularize}_id" if column_names.include?('derived')}", :conditions => "sourceable_institutions.id IS NULL #{"AND #{table_name}.derived = false OR (#{table_name}.derived = true AND flattened_item_#{table_name}.id IS NULL)" if column_names.include?('derived')}"}
+          named_scope :unsourced, {:select => "DISTINCT #{table_name}.*", :joins => "LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{name}' AND #{table_name}.id = sourceable_institutions.sourceable_id #{"LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name}.id = flattened_item_#{table_name}.#{table_name.singularize}_id" if column_names.include?('derived')}", :conditions => "sourceable_institutions.id IS NULL #{"AND #{table_name}.derived = false OR (#{table_name}.derived = true AND flattened_item_#{table_name}.id IS NULL)" if column_names.include?('derived')}"}
 
           after_save :record_source
 
@@ -35,11 +35,11 @@ module ActiveRecord
             when 'items'
               "LEFT OUTER JOIN flattened_item_#{table_name} AS items ON items.#{table_name.singularize}_id = #{table_name}.id"
             when 'user_submissions'
-              "LEFT OUTER JOIN user_submissions ON user_submissions.user_submittable_type = '#{self.class.name}' AND user_submissions.user_submittable_id = #{table_name}.id"
+              "LEFT OUTER JOIN user_submissions ON user_submissions.user_submittable_type = '#{name}' AND user_submissions.user_submittable_id = #{table_name}.id"
             when 'discussions'
-              "LEFT OUTER JOIN discussions ON discussions.discussable_type = '#{self.class.name}' AND discussions.discussable_id = #{table_name}.id"
+              "LEFT OUTER JOIN discussions ON discussions.discussable_type = '#{name}' AND discussions.discussable_id = #{table_name}.id"
             when 'alternate_names'
-              "LEFT OUTER JOIN alternate_names ON alternate_names.alternate_nameable_type = '#{self.class.name}' AND alternate_names.alternate_nameable_id = #{table_name}.id"
+              "LEFT OUTER JOIN alternate_names ON alternate_names.alternate_nameable_type = '#{name}' AND alternate_names.alternate_nameable_id = #{table_name}.id"
             when 'project_items'
               "LEFT OUTER JOIN project_items ON project_items.item_id = #{table_name}.id"
             when 'languages'
@@ -61,7 +61,7 @@ module ActiveRecord
         module ClassMethods
           def garbage_collect
             # Destroy all entries of this class which no longer have a SourceableInstitution
-            destroy_all("NOT EXISTS (SELECT * FROM sourceable_institutions WHERE sourceable_institutions.sourceable_type = '#{self.class.name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
+            destroy_all("NOT EXISTS (SELECT * FROM sourceable_institutions WHERE sourceable_institutions.sourceable_type = '#{name}' AND sourceable_institutions.sourceable_id = #{table_name}.id)")
           end
 
           def unsource
