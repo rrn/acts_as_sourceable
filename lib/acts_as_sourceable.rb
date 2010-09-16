@@ -1,6 +1,10 @@
 require 'acts_as_sourceable/sourceable_institution'
 
 module ActsAsSourceable
+  def self.included(base)
+    base.extend(ActMethod)
+  end
+  
   module ActMethod
     def acts_as_sourceable(options = {})
       # Include Class and Instance Methods
