@@ -79,7 +79,7 @@ module ActsAsSourceable
       
       def record_source
         if SourceableInstitution.record
-          raise 'acts_as_sourceable cannot save because no global variable $INSTITUTION has been set for this conversion session.' if $HOLDING_INSTITUTION.nil?
+          raise 'acts_as_sourceable cannot save because no global variable $HOLDING_INSTITUTION has been set for this conversion session.' if $HOLDING_INSTITUTION.nil?
           sourceable_institution = SourceableInstitution.new
           sourceable_institution.holding_institution = $HOLDING_INSTITUTION
           sourceable_institution.sourceable = self

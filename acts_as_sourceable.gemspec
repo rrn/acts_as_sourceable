@@ -8,6 +8,4 @@ Gem::Specification.new do |s|
   s.authors = ['Nicholas Jakobsen', 'Ryan Wallace']
   s.extra_rdoc_files = ['README.rdoc']
   s.has_rdoc = true
-  
-  s.add_dependency 'acts_as_replaceable'
 end
