@@ -14,7 +14,7 @@ module ActsAsSourceable
       has_many :sourceable_institutions, :as => :sourceable, :dependent => :destroy
       has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
 
-      named_scope :sourced, {:select => "DISTINCT #{table_name}.*", :joins => :sourceable_institutions}
+      named_scope :sourced, {:joins => "INNER JOIN (SELECT sourceable_id FROM \"sourceable_institutions\" WHERE sourceable_type = '#{name}' GROUP BY sourceable_id) AS \"sourceable_institutions\" ON sourceable_institutions.sourceable_id = #{quoted_table_name}.id"}
       
       # An sourceable is unsourced if it has no sourceable_institution
       # OR if the sourceable is derived, it is unsourced if it doesn't 
