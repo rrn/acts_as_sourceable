@@ -29,7 +29,7 @@ module ActsAsSourceable
         cattr_accessor :uses
         self.uses = options[:uses]
 
-        named_scope :unused, {:joins => unused_joins(options[:uses]), :conditions => unused_conditions(options[:uses])}
+        scope :unused, joins(unused_joins(options[:uses])).where(unused_conditions(options[:uses]))
       end
 
       cattr_accessor :cache_flag
