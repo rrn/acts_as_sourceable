@@ -36,6 +36,10 @@ module ActsAsSourceable
       self.cache_flag = options[:cache_flag]
       
       # Keep a list of all classes that are sourceable
+      #
+      # FIXME: This only works because sourceable_classes is pass by reference
+      # so we read it and then we add an element to it. Try to find a less hackish
+      # way to do this.
       SourceableInstitution.sourceable_classes << self
     end
 
