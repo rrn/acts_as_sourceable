@@ -27,14 +27,49 @@ class SourceableInstitution < ActiveRecord::Base
     end
   end
 
-  def self.unsourced(*args)
-    classes = args.present? ? args : @@sourceable_classes
+  def self.unsourced(options = {})
+    classes = options[:classes] || @@sourceable_classes
     sql = []
     
     for sourceable_class in classes
       sql << "SELECT '#{sourceable_class.name}' AS sourceable_type, #{sourceable_class.table_name}.id AS sourceable_id FROM #{sourceable_class.table_name} LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{sourceable_class.name}' AND sourceable_institutions.sourceable_id = #{sourceable_class.table_name}.id WHERE sourceable_institutions.id IS NULL #{"AND #{sourceable_class.table_name}.derived = false" if sourceable_class.column_names.include?('derived')}"
     end
     
-    ActiveRecord::Base.connection.execute(sql.join(" UNION "))
+    sql = sql.join(" UNION ")
+    
+    # Add a limit and offset and assemble a count query if we want a paginated collection
+    if options.key?(:page)
+      options[:page] ||= 1
+      options[:per] ||= 100
+      
+      count_sql = "SELECT COUNT(*) AS count FROM (" + sql + ") AS orphans"
+      
+      sql << " LIMIT #{options[:per]}"
+      sql << " OFFSET #{(options[:page] - 1) * options[:per]}"
+    end
+    
+    # Find all orphans of each type at once to reduce the number of queries
+    records = ActiveRecord::Base.connection.execute(sql).group_by {|entry| entry['sourceable_type'] }.collect do |sourceable_type, entries|
+      sourceable_type.constantize.find(entries.collect {|entry| entry['sourceable_id'] })
+    end.flatten
+    
+    # Masquerade as a paginated collection
+    if options.key?(:page)
+      count = count_by_sql(count_sql)
+      
+      records.instance_eval <<-EVAL
+            def current_page
+              #{options[:page] || 1}
+            end
+            def num_pages
+              #{count}
+            end
+            def limit_value                                                                               
+              #{options[:per]}
+            end
+      EVAL
+    end
+    
+    return records
   end
 end
