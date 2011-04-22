@@ -25,12 +25,7 @@ module ActsAsSourceable
 
       after_save :record_source
 
-      if options[:uses]
-        cattr_accessor :uses
-        self.uses = options[:uses]
-
-        scope :unused, joins(unused_joins(options[:uses])).where(unused_conditions(options[:uses]))
-      end
+      unused_unless(*options[:uses]) if options[:uses]
 
       cattr_accessor :cache_flag
       self.cache_flag = options[:cache_flag]
@@ -41,6 +36,13 @@ module ActsAsSourceable
       # so we read it and then we add an element to it. Try to find a less hackish
       # way to do this.
       SourceableInstitution.sourceable_classes << self
+    end
+    
+    def unused_unless(*args)
+      cattr_accessor :uses
+      self.uses = args
+
+      scope :unused, joins(unused_joins(self.uses)).where(unused_conditions(self.uses))
     end
 
     def unused_joins(uses)
