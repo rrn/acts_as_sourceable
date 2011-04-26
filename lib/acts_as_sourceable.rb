@@ -96,7 +96,9 @@ module ActsAsSourceable
         if SourceableInstitution.record
           raise 'acts_as_sourceable cannot save because no global variable $HOLDING_INSTITUTION has been set for this conversion session.' if $HOLDING_INSTITUTION.nil?
           
-          self.sources << $HOLDING_INSTITUTION
+          unless sourceable_institutions.exists?(:holding_institution_id => $HOLDING_INSTITUTION.id)
+            self.sources << $HOLDING_INSTITUTION
+          end
 
           self.class.update_all("#{self.class.cache_flag} = true", ["id = ?", id]) if self.class.cache_flag
         end
