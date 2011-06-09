@@ -41,6 +41,8 @@ class SourceableInstitution < ActiveRecord::Base
     if options.key?(:page)
       options[:page] ||= 1
       options[:per] ||= 100
+      options[:page] = options[:page].to_i
+      options[:per] = options[:per].to_i
       
       count_sql = "SELECT COUNT(*) AS count FROM (" + sql + ") AS orphans"
       
