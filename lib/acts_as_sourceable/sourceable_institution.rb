@@ -64,7 +64,7 @@ class SourceableInstitution < ActiveRecord::Base
               #{options[:page] || 1}
             end
             def num_pages
-              #{count}
+              #{(count / options[:per].to_f).ceil}
             end
             def limit_value                                                                               
               #{options[:per]}
