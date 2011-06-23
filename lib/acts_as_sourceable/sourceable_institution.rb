@@ -28,7 +28,7 @@ class SourceableInstitution < ActiveRecord::Base
   end
 
   def self.unsourced(options = {})
-    classes = options[:classes] || @@sourceable_classes
+    classes = Array(options[:classes] || @@sourceable_classes)
     sql = []
     
     for sourceable_class in classes
