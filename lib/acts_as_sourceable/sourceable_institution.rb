@@ -12,7 +12,7 @@ class SourceableInstitution < ActiveRecord::Base
   cattr_accessor :record
 
   def self.unsource_all(institution)
-    delete_all(["holding_institution_id = ?", institution.id])
+    delete_all(:holding_institution_id => institution.id)
 
     @@sourceable_classes.each do |sourceable_class|
       sourceable_class.unsource

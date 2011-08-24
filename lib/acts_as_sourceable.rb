@@ -35,7 +35,7 @@ module ActsAsSourceable
       # FIXME: This only works because sourceable_classes is pass by reference
       # so we read it and then we add an element to it. Try to find a less hackish
       # way to do this.
-      SourceableInstitution.sourceable_classes << self
+      SourceableInstitution.sourceable_classes << self unless SourceableInstitution.sourceable_classes.include?(self)
     end
     
     def unused_unless(*args)
@@ -81,7 +81,10 @@ module ActsAsSourceable
       end
 
       def unsource
-        update_all("#{self.cache_flag} = false", ["holding_institution_id = ?", $HOLDING_INSTITUTION.id]) if self.cache_flag
+        old = ActiveRecord::Base.logger
+        ActiveRecord::Base.logger = Logger.new(STDOUT)
+        update_all("#{self.cache_flag} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, self.cache_flag => true) if self.cache_flag
+        ActiveRecord::Base.logger = old
       end
     end
 
