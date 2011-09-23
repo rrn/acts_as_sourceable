@@ -27,10 +27,10 @@ module ActsAsSourceable
         scope :sourced, where(sourced_cache_column => true)
         scope :unsourced, where(sourced_cache_column => false)
       elsif column_names.include?('derived')
-        scope :sourced, override_grouped_count(joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id"))
+        scope :sourced, where("id IN (#{select("#{quoted_table_name}.id").joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id").to_sql})")
         scope :unsourced, joins("LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name.singularize}_id = #{quoted_table_name}.id").where("#{table_name.singularize}_id IS NULL")
       else
-        scope :sourced, override_grouped_count(joins(:sourceable_institutions).group("#{quoted_table_name}.id"))
+        scope :sourced, where("id IN (#{select("#{quoted_table_name}.id").joins(:sourceable_institutions).group("#{quoted_table_name}.id").to_sql})")
         scope :unsourced, joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_id = #{quoted_table_name}.id and sourceable_type = '#{self.name}'").where("sourceable_id IS NULL")
       end
       
@@ -78,17 +78,6 @@ module ActsAsSourceable
       return conditions_hash
     end
     
-    # Because rails returns an ordered hash when calling count on a relation with a group clause,
-    # we force it not to do this becuase it is dumb
-    # Hopefully they will change this behaviour slightly, 
-    def override_grouped_count(scope)
-      def scope.execute_grouped_calculation(*args)
-        execute_simple_calculation(*args)
-      end
-      
-      return scope
-    end
-
     module ClassMethods
       def garbage_collect
         # Destroy all entries of this class which no longer have a SourceableInstitution
@@ -97,7 +86,7 @@ module ActsAsSourceable
 
       def unsource
         update_all("#{sourced_cache_column} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, sourced_cache_column => true) if sourced_cache_column
-      end
+      end      
     end
 
     module InstanceMethods
