@@ -85,6 +85,8 @@ module ActsAsSourceable
       def scope.execute_grouped_calculation(*args)
         execute_simple_calculation(*args)
       end
+      
+      return scope
     end
 
     module ClassMethods
