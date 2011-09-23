@@ -13,22 +13,25 @@ module ActsAsSourceable
 
       has_many :sourceable_institutions, :as => :sourceable, :dependent => :destroy
       has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
-
-      scope :sourced, joins("INNER JOIN (SELECT sourceable_id FROM \"sourceable_institutions\" WHERE sourceable_type = '#{name}' GROUP BY sourceable_id) AS \"sourceable_institutions\" ON sourceable_institutions.sourceable_id = #{quoted_table_name}.id")
       
-      # An sourceable is unsourced if it has no sourceable_institution
-      # OR if the sourceable is derived, it is unsourced if it doesn't 
-      # have an entry in the corresponding flattened_item table.
-      scope :unsourced, select("DISTINCT #{table_name}.*")
-                        .joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_institutions.sourceable_type = '#{name}' AND #{table_name}.id = sourceable_institutions.sourceable_id #{"LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name}.id = flattened_item_#{table_name}.#{table_name.singularize}_id" if column_names.include?('derived')}")
-                        .where("sourceable_institutions.id IS NULL #{"AND #{table_name}.derived = false OR (#{table_name}.derived = true AND flattened_item_#{table_name}.id IS NULL)" if column_names.include?('derived')}")
-
       after_save :record_source
-
+      cattr_reader :sourced_cache_column
+      @@sourced_cache_column = options[:sourced_cache_column]
       unused_unless(*options[:uses]) if options[:uses]
 
-      cattr_accessor :cache_flag
-      self.cache_flag = options[:cache_flag]
+      # If a cache column is provided, use that to determine which records are sourced and unsourced
+      # Elsif the records can be derived, we need to check the flattened item tables for any references
+      # Else we check the sourceable_institutions to see if the record has a recorded source
+      if sourced_cache_column
+        scope :sourced, where(options[:sourced_cache_column] => true)
+        scope :unsourced, where(options[:sourced_cache_column] => false)
+      elsif column_names.include?('derived')
+        scope :sourced, joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id")
+        scope :unsourced, joins("LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name.singularize}_id = #{quoted_table_name}.id").where("#{table_name.singularize}_id IS NULL")
+      else
+        scope :sourced, joins(:sourceable_institutions).group("#{quoted_table_name}.id")
+        scope :unsourced, joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_id = #{quoted_table_name}.id and sourceable_type = '#{self.name}'").where("sourceable_id IS NULL")
+      end
       
       # Keep a list of all classes that are sourceable
       #
@@ -81,16 +84,21 @@ module ActsAsSourceable
       end
 
       def unsource
-        old = ActiveRecord::Base.logger
-        ActiveRecord::Base.logger = Logger.new(STDOUT)
-        update_all("#{self.cache_flag} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, self.cache_flag => true) if self.cache_flag
-        ActiveRecord::Base.logger = old
+        update_all("#{self.sourced_cache_column} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, self.sourced_cache_column => true) if self.sourced_cache_column
       end
     end
 
     module InstanceMethods
+      def sourced?
+        if sourced_cache_column
+          self[sourced_cache_column]
+        else
+          self.class.sourced.exists?(self)
+        end
+      end
+      
       def unsourced?
-        self.class.unsourced.exists?(self)
+        !sourced?
       end
         
       private
@@ -99,11 +107,11 @@ module ActsAsSourceable
         if SourceableInstitution.record
           raise 'acts_as_sourceable cannot save because no global variable $HOLDING_INSTITUTION has been set for this conversion session.' if $HOLDING_INSTITUTION.nil?
           
-          unless sourceable_institutions.exists?(:holding_institution_id => $HOLDING_INSTITUTION.id)
-            self.sources << $HOLDING_INSTITUTION
-          end
+          # add the holding institution as a source if it isn't already
+          self.sources << $HOLDING_INSTITUTION unless sourceable_institutions.exists?(:holding_institution_id => $HOLDING_INSTITUTION.id)
 
-          self.class.update_all("#{self.class.cache_flag} = true", ["id = ?", id]) if self.class.cache_flag
+          # Update via sql because we don't need callbacks and validations called 
+          self.class.update_all("#{self.class.sourced_cache_column} = true", :id => id) if self.class.sourced_cache_column
         end
       end
     end
