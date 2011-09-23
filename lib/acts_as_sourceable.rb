@@ -15,21 +15,22 @@ module ActsAsSourceable
       has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
       
       after_save :record_source
-      cattr_reader :sourced_cache_column
-      @@sourced_cache_column = options[:sourced_cache_column]
+      cattr_accessor :sourced_cache_column
+
+      self.sourced_cache_column = options[:cache_column]
       unused_unless(*options[:uses]) if options[:uses]
 
       # If a cache column is provided, use that to determine which records are sourced and unsourced
       # Elsif the records can be derived, we need to check the flattened item tables for any references
       # Else we check the sourceable_institutions to see if the record has a recorded source
       if sourced_cache_column
-        scope :sourced, where(options[:sourced_cache_column] => true)
-        scope :unsourced, where(options[:sourced_cache_column] => false)
+        scope :sourced, where(sourced_cache_column => true)
+        scope :unsourced, where(sourced_cache_column => false)
       elsif column_names.include?('derived')
-        scope :sourced, joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id")
+        scope :sourced, override_grouped_count(joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id"))
         scope :unsourced, joins("LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name.singularize}_id = #{quoted_table_name}.id").where("#{table_name.singularize}_id IS NULL")
       else
-        scope :sourced, joins(:sourceable_institutions).group("#{quoted_table_name}.id")
+        scope :sourced, override_grouped_count(joins(:sourceable_institutions).group("#{quoted_table_name}.id"))
         scope :unsourced, joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_id = #{quoted_table_name}.id and sourceable_type = '#{self.name}'").where("sourceable_id IS NULL")
       end
       
@@ -76,6 +77,15 @@ module ActsAsSourceable
 
       return conditions_hash
     end
+    
+    # Because rails returns an ordered hash when calling count on a relation with a group clause,
+    # we force it not to do this becuase it is dumb
+    # Hopefully they will change this behaviour slightly, 
+    def override_grouped_count(scope)
+      def scope.execute_grouped_calculation(*args)
+        execute_simple_calculation(*args)
+      end
+    end
 
     module ClassMethods
       def garbage_collect
@@ -84,7 +94,7 @@ module ActsAsSourceable
       end
 
       def unsource
-        update_all("#{self.sourced_cache_column} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, self.sourced_cache_column => true) if self.sourced_cache_column
+        update_all("#{sourced_cache_column} = false", :holding_institution_id => $HOLDING_INSTITUTION.id, sourced_cache_column => true) if sourced_cache_column
       end
     end
 
@@ -111,7 +121,7 @@ module ActsAsSourceable
           self.sources << $HOLDING_INSTITUTION unless sourceable_institutions.exists?(:holding_institution_id => $HOLDING_INSTITUTION.id)
 
           # Update via sql because we don't need callbacks and validations called 
-          self.class.update_all("#{self.class.sourced_cache_column} = true", :id => id) if self.class.sourced_cache_column
+          self.class.update_all("#{sourced_cache_column} = true", :id => id) if sourced_cache_column
         end
       end
     end
