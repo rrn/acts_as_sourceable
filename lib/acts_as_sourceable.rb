@@ -27,7 +27,8 @@ module ActsAsSourceable
         scope :sourced, where(sourced_cache_column => true)
         scope :unsourced, where(sourced_cache_column => false)
       elsif column_names.include?('derived')
-        scope :sourced, where("id IN (#{select("#{quoted_table_name}.id").joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id").to_sql})")
+        # FIXME: We needed a lambda because we don't have flattened tables in the data mapper. Find a better way to handle this
+        scope :sourced, lambda { where("id IN (#{select("#{quoted_table_name}.id").joins(:"flattened_item_#{table_name}").group("#{quoted_table_name}.id").to_sql})") }
         scope :unsourced, joins("LEFT OUTER JOIN flattened_item_#{table_name} ON #{table_name.singularize}_id = #{quoted_table_name}.id").where("#{table_name.singularize}_id IS NULL")
       else
         scope :sourced, where("id IN (#{select("#{quoted_table_name}.id").joins(:sourceable_institutions).group("#{quoted_table_name}.id").to_sql})")
