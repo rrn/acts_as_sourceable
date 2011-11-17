@@ -2,17 +2,21 @@ module ActsAsSourceable
   module ActMethod
     def acts_as_sourceable(options = {})
       # Include Class and Instance Methods
+      ActiveRecord::Relation.send(:include, ActsAsSourceable::ActiveRelationMethods)
       extend ActsAsSourceable::ClassMethods
       include ActsAsSourceable::InstanceMethods
 
       has_many :sourceable_institutions, :as => :sourceable, :dependent => :destroy
       has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
+      
+      # Delegate the relation methods to the relation
+      delegate :update_sources, :unsource, :to => :scoped
 
       cattr_accessor :sourceable_cache_column, :sourceable_used_by, :sourceable_sourced_by
       self.sourceable_cache_column = options[:cache_column]
       self.sourceable_used_by = options[:used_by]
       self.sourceable_sourced_by = options[:sourced_by]
-
+      
       # If a cache column is provided, use that to determine which records are sourced and unsourced
       # Elsif the records can be derived, we need to check the flattened item tables for any references
       # Else we check the sourceable_institutions to see if the record has a recorded source
@@ -33,19 +37,29 @@ module ActsAsSourceable
       end
     end
   end
-
-  module ClassMethods
+  
+  module ActiveRelationMethods
     def update_sources
-      find_each(&:update_sources)
+      scoping { @klass.find_each(&:update_sources) }
     end
     
     def unsource
-      SourceableInstitution.where(:sourceable_type => name).delete_all
-      update_all("#{sourceable_cache_column} = false", sourceable_cache_column => true) if sourceable_cache_column
+      scoping { @klass.update_all("#{sourceable_cache_column} = false", @klass.sourceable_cache_column => true) } if @klass.sourceable_cache_column
+      scoping { SourceableInstitution.where("sourceable_type = ? AND  sourceable_id IN (#{@klass.select(:id).to_sql})", @klass.name).delete_all }
     end
   end
 
+  module ClassMethods
+    def acts_like_sourceable?
+      true
+    end    
+  end
+
   module InstanceMethods
+    def acts_like_sourceable?
+      true
+    end
+    
     # Automatically update the sources for this model
     # If the model gets its sources from another model, collect the sources of that model and record them as your own
     # Else, this model must belong to a holding institution, so that is the source
