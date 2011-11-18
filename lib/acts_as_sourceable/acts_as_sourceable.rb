@@ -10,7 +10,9 @@ module ActsAsSourceable
       has_many :sources, :through => :sourceable_institutions, :source => :holding_institution
       
       # Delegate the relation methods to the relation
-      delegate :update_sources, :unsource, :to => :scoped
+      class << self
+        delegate :update_sources, :unsource, :to => :scoped
+      end
 
       cattr_accessor :sourceable_cache_column, :sourceable_used_by, :sourceable_sourced_by
       self.sourceable_cache_column = options[:cache_column]
@@ -66,7 +68,9 @@ module ActsAsSourceable
     def update_sources
       if sourceable_sourced_by
         if self.class.reflect_on_association(sourceable_sourced_by.to_sym).collection?
-          set_sources(send(sourceable_sourced_by).includes(:sources).collect(&:sources).flatten.uniq)
+          source_id_sql = send(sourceable_sourced_by).joins(:sourceable_institutions).select("sourceable_institutions.holding_institution_id").to_sql
+          sources = HoldingInstitution.where("id IN (#{source_id_sql})")
+          set_sources(sources)
         else
           set_sources(send(sourceable_sourced_by).sources)
         end
