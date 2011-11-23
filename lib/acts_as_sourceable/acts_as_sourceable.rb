@@ -91,8 +91,23 @@ module ActsAsSourceable
       !sourced?
     end
 
+    # NOTE: We do a much more verbose method of assigning sources than the obvious self.sources = Array(holding_institutions)
+    #       because HoldingInstitutions are present in the production database, and assigning sources causes rails to use the
+    #       production database (as opposed to the conversion database) to check for existing sources. This is obviously bad
+    #       because the sources in the production database do not reflect those that are in the conversion database since we
+    #       unsource many things during conversion.
     def set_sources(holding_institutions)
-      self.sources = Array(holding_institutions)
+      holding_institution_ids = Array(holding_institutions).collect(&:id)
+      sourceable_insitution_ids = self.class.connection.select_values(self.sourceable_institutions.select('sourceable_institutions.id').to_sql)
+      
+      # Delete those that have been removed
+      SourceableInstitution.where(:sourceable_type => self.class.name, :sourceable_id => self.id).delete_all(['holding_institution_id NOT IN (?)', holding_institution_ids])
+      
+      # Add those that are not present
+      holding_institution_ids.each do |holding_institution_id|
+        self.sourceable_institutions << SourceableInstitution.new(:holding_institution_id => holding_institution_id) unless sourceable_insitution_ids.include?(holding_institution_id)
+      end
+      
       set_sourceable_cache_column(holding_institutions.present?)
     end
     
