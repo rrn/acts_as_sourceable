@@ -98,14 +98,14 @@ module ActsAsSourceable
     #       unsource many things during conversion.
     def set_sources(holding_institutions)
       holding_institution_ids = Array(holding_institutions).collect(&:id)
-      sourceable_insitution_ids = self.class.connection.select_values(self.sourceable_institutions.select('sourceable_institutions.id').to_sql)
+      existing_source_ids = self.class.connection.select_values(self.sourceable_institutions.select('sourceable_institutions.holding_institution_id').to_sql).collect(&:to_i)
       
       # Delete those that have been removed
       SourceableInstitution.where(:sourceable_type => self.class.name, :sourceable_id => self.id).delete_all(['holding_institution_id NOT IN (?)', holding_institution_ids])
       
       # Add those that are not present
       holding_institution_ids.each do |holding_institution_id|
-        self.sourceable_institutions << SourceableInstitution.new(:holding_institution_id => holding_institution_id) unless sourceable_insitution_ids.include?(holding_institution_id)
+        self.sourceable_institutions << SourceableInstitution.new(:holding_institution_id => holding_institution_id) unless existing_source_ids.include?(holding_institution_id)
       end
       
       set_sourceable_cache_column(holding_institutions.present?)
