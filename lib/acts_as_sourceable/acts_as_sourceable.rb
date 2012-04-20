@@ -14,7 +14,7 @@ module ActsAsSourceable
         delegate :update_sources, :unsource, :to => :scoped
       end
 
-      cattr_accessor :sourceable_cache_column, :sourceable_used_by, :sourceable_sourced_by
+      class_attribute :sourceable_cache_column, :sourceable_used_by, :sourceable_sourced_by
       self.sourceable_cache_column = options[:cache_column]
       self.sourceable_used_by = options[:used_by]
       self.sourceable_sourced_by = options[:sourced_by]
@@ -47,7 +47,7 @@ module ActsAsSourceable
     
     def unsource
       scoping { @klass.update_all("#{sourceable_cache_column} = false", @klass.sourceable_cache_column => true) } if @klass.sourceable_cache_column
-      scoping { SourceableInstitution.where("sourceable_type = ? AND  sourceable_id IN (#{@klass.select(:id).to_sql})", @klass.name).delete_all }
+      scoping { SourceableInstitution.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select(:id).to_sql})", @klass.name).delete_all }
     end
   end
 
@@ -98,17 +98,18 @@ module ActsAsSourceable
     #       unsource many things during conversion.
     def set_sources(holding_institutions)
       holding_institution_ids = Array(holding_institutions).collect(&:id)
-      existing_source_ids = self.class.connection.select_values(self.sourceable_institutions.select('sourceable_institutions.holding_institution_id').to_sql).collect(&:to_i)
+      existing_source_ids = sourceable_institutions.pluck('holding_institution_id')
       
       # Delete those that have been removed
-      SourceableInstitution.where(:sourceable_type => self.class.name, :sourceable_id => self.id).delete_all(['holding_institution_id NOT IN (?)', holding_institution_ids])
+      condition = holding_institution_ids.any? ? "holding_institution_id NOT IN (?)" : nil # Can't use "NOT IN (?)" for an empty array because the result is always false
+      SourceableInstitution.where(:sourceable_type => self.class.name, :sourceable_id => self.id).delete_all(condition)
       
       # Add those that are not present
       holding_institution_ids.each do |holding_institution_id|
         self.sourceable_institutions << SourceableInstitution.new(:holding_institution_id => holding_institution_id) unless existing_source_ids.include?(holding_institution_id)
       end
       
-      set_sourceable_cache_column(holding_institutions.present?)
+      set_sourceable_cache_column(holding_institution_ids.any?)
     end
     
     private
