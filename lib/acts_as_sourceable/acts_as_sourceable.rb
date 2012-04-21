@@ -101,7 +101,7 @@ module ActsAsSourceable
       existing_source_ids = sourceable_institutions.pluck('holding_institution_id')
       
       # Delete those that have been removed
-      condition = holding_institution_ids.any? ? "holding_institution_id NOT IN (?)" : nil # Can't use "NOT IN (?)" for an empty array because the result is always false
+      condition = holding_institution_ids.any? ? ["holding_institution_id NOT IN (?)", existing_source_ids] : nil # Can't use "NOT IN (?)" for an empty array because the result is always false
       SourceableInstitution.where(:sourceable_type => self.class.name, :sourceable_id => self.id).delete_all(condition)
       
       # Add those that are not present
