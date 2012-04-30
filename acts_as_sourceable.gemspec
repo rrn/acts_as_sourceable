@@ -8,5 +8,5 @@ Gem::Specification.new do |s|
   s.description = 'Allows the RRN to perform garbage collection on categories that are no longer referenced.'
   s.authors = ['Nicholas Jakobsen', 'Ryan Wallace']
   s.require_paths = ["lib"]
-  s.files = `git ls-files`.split("\n")
+  s.files = Dir.glob("{lib}/**/*") + %w(README.rdoc)
 end
