@@ -27,12 +27,12 @@ module ActsAsSourceable
         scope :unsourced, where(sourceable_cache_column => false)
       else
         scope :sourced, joins(:sourceable_institutions).group("#{table_name}.id")
-        scope :unsourced, joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_id = #{quoted_table_name}.id and sourceable_type = '#{self.name}'").where("sourceable_id IS NULL")
+        scope :unsourced, joins("LEFT OUTER JOIN sourceable_institutions ON sourceable_id = #{table_name}.id and sourceable_type = '#{self.name}'").where("sourceable_id IS NULL")
       end
 
       # Create a scope that returns record that is not used by the associations in sourceable_used_by
       if sourceable_used_by
-        scope :unused, where(Array(sourceable_used_by).collect {|usage_association| "id NOT IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' AND '))
+        scope :unused, where(Array(sourceable_used_by).collect {|usage_association| "#{table_name}.id NOT IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' AND '))
         scope :orphaned, unsourced.unused
       else
         scope :orphaned, unsourced
