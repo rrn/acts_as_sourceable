@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = 'acts_as_sourceable'
-  s.version = '1.0.6'
-  s.date = %q{2010-09-16}
+  s.version = '2.0.0'
+  s.date = %q{2013-01-26}
   s.email = 'technical@rrnpilot.org'
   s.homepage = 'http://github.com/rrn/acts_as_sourceable'
   s.summary = 'perform garbage collection on categories that are no longer referenced'
@@ -9,4 +9,6 @@ Gem::Specification.new do |s|
   s.authors = ['Nicholas Jakobsen', 'Ryan Wallace']
   s.require_paths = ["lib"]
   s.files = Dir.glob("{lib}/**/*") + %w(README.rdoc)
+
+  s.add_dependency('postgres_ext', '~> 0.1.0')
 end
