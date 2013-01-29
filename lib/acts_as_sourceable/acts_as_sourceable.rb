@@ -15,8 +15,8 @@ module ActsAsSourceable
         if acts_as_sourceable_options[:through]
           def sources; send(acts_as_sourceable_options[:through]) || []; end
         else
-          has_one :sourceable_institution, :class_name => 'ActsAsSourceable::Registry', :as => :sourceable, :dependent => :delete
-          def sources; sourceable_institution.try(:sources) || []; end
+          has_one :sourceable_registry_entry, :class_name => 'ActsAsSourceable::Registry', :as => :sourceable, :dependent => :delete
+          def sources; sourceable_registry_entry.try(:sources) || []; end
         end
       end
 
@@ -25,7 +25,7 @@ module ActsAsSourceable
 
       # If a cache column is provided, use that to determine which records are sourced and unsourced
       # Elsif the records can be derived, we need to check the flattened item tables for any references
-      # Else we check the sourceable_institutions to see if the record has a recorded source
+      # Else we check the registry_entries to see if the record has a recorded source
       if options[:cache_column]
         scope :sourced, where(options[:cache_column] => true)
         scope :unsourced, where(options[:cache_column] => false)
@@ -33,7 +33,7 @@ module ActsAsSourceable
         scope :sourced, joins(options[:through]).uniq
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       else
-        scope :sourced, joins(:sourceable_institution)
+        scope :sourced, joins(:sourceable_registry_entry)
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       end
 
