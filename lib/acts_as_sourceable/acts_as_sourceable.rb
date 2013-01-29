@@ -172,8 +172,9 @@ module ActsAsSourceable
       group_by_class(*sources).collect!{|group| group.collect(&:id)}
     end
 
-    # Removes sourceable institutions that no longer belong to a record or holding institution
+    # Removes registry entries that no longer belong to a sourceable, item, collection, or holding institution
     def self.garbage_collect
+      # Remove all registry entries where the sourceable is gone
       ActsAsSourceable::Registry.pluck(:sourceable_type).uniq.each do |sourceable_type|
         sourceable_table_name = sourceable_type.constantize.table_name
         sourceable_id_sql = ActsAsSourceable::Registry
@@ -184,7 +185,6 @@ module ActsAsSourceable
 
         ActsAsSourceable::Registry.delete_all("id IN (#{sourceable_id_sql})")
       end
-
 
       # Repair all Registry entries that reference missing items, collections, or holding institutions
       holding_institution_ids = HoldingInstitution.pluck(:id)

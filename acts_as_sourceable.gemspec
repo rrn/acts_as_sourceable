@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.description = 'Allows the RRN to perform garbage collection on categories that are no longer referenced.'
   s.authors = ['Nicholas Jakobsen', 'Ryan Wallace']
   s.require_paths = ["lib"]
-  s.files = Dir.glob("{lib}/**/*") + %w(README.rdoc)
+  s.files = Dir.glob("{lib}/**/*") + %w(README.md)
 
   s.add_dependency('postgres_ext', '~> 0.1.0')
 end
