@@ -7,26 +7,6 @@ describe 'acts_as_sourceable' do
   end
 
   describe "helper methods" do
-    it "should be able to group by class" do
-      ActsAsSourceable::HelperMethods.group_by_class(@collection, @item1, @holding_institution).should == [[@holding_institution], [@collection], [@item1]]
-    end
-
-    it "should return an empty array for any class that isn't present when grouping by class" do
-      ActsAsSourceable::HelperMethods.group_by_class(@collection, @holding_institution).should == [[@holding_institution], [@collection], []]
-    end
-
-    it "should be able to return grouped ids" do
-      ActsAsSourceable::HelperMethods.group_ids_by_class(@collection, @item1, @holding_institution).should == [[@holding_institution.id], [@collection.id], [@item1.id]]
-    end
-
-    it "should return an empty array for any class that isn't present when grouping ids" do
-      ActsAsSourceable::HelperMethods.group_ids_by_class(@collection, @holding_institution).should == [[@holding_institution.id], [@collection.id], []]
-    end
-
-    it "should order the grouped ids correctly when some classes are not present" do
-      ActsAsSourceable::HelperMethods.group_ids_by_class(@collection).should == [[], [@collection.id], []]
-    end
-
     describe "when garbage collecting" do
       it "should be able to fix registry entries that reference a single deleted source" do
         item3 = Item.create!
@@ -65,22 +45,8 @@ describe 'acts_as_sourceable' do
         SourceableRecord.delete(record.id)
         ActsAsSourceable::HelperMethods.garbage_collect
 
-        ActsAsSourceable::Registry.where(:sourceable_type => SourceableRecord, :sourceable_id => record.id).exists?.should be_false
+        ActsAsSourceable::RegistryEntry.where(:sourceable_type => SourceableRecord, :sourceable_id => record.id).exists?.should be_false
       end
-    end
-  end
-
-  shared_examples_for "acts_as_sourceable models with any options" do
-    it "should be able to return all Items the record is sourced by" do
-      pending
-    end
-
-    it "should be able to return all Collections the record is sourced by" do
-      pending
-    end
-
-    it "should be able to return all HoldingInstitutions the record is sourced by" do
-      pending
     end
   end
 
@@ -174,7 +140,7 @@ describe 'acts_as_sourceable' do
       @klass.unsourced.should == []
     end
 
-    it "should be able to return all records sourced by a specific Item, Collection, or HoldingInstitution" do
+    it "should be able to return all records sourced by a specific record" do
       @record.add_source(@item1, @holding_institution)
 
       @klass.sourced_by(@item1).should == [@record]
@@ -214,17 +180,15 @@ describe 'acts_as_sourceable' do
       @record.add_source(@holding_institution)
       @record.destroy
 
-      ActsAsSourceable::Registry.where(:sourceable_id => @record.id, :sourceable_type => @record.class).exists?.should be_false
+      ActsAsSourceable::RegistryEntry.where(:sourceable_id => @record.id, :sourceable_type => @record.class).exists?.should be_false
     end
 
     it "should not be able to add a model other than and Item, Collection, or Holding Institution as a source" do
       pending
     end
-
-    it_should_behave_like "acts_as_sourceable models with any options"
   end
 
-  describe "a model that acts_as_sourceable" do
+  describe "a model that acts_as_sourceable through an association" do
     before(:each) do
       @klass = SourceableThroughRecord
       @sourced_record = @klass.create!(:item_id => @item1.id)
@@ -241,11 +205,14 @@ describe 'acts_as_sourceable' do
       @klass.unsourced.should == [@unsourced_record]
     end
 
-    it "should be able to return all records sourced by a specific Item, Collection, or HoldingInstitution" do
-      pending
-    end
+    it "should be able to return all records sourced by a specific record" do
+      @klass.sourced_by(@item1).should == [@sourced_record]
+      @klass.sourced_by(@item2).should == []
+    end    
 
-    it_should_behave_like "acts_as_sourceable models with any options"    
+    it "should not return items that are source by a record with the same id, but of a different class" do
+      pending
+    end    
   end  
 
   describe "a model that acts_as_sourceable with a cache_column" do
@@ -269,9 +236,11 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not update the cache column when removing one of many sources" do
+      debug do
       @record.add_source(@holding_institution, @collection)
       @record.remove_source(@holding_institution)
-      @record.sourced.should be_true
+      @record.reload.sourced.should be_true
+      end
     end
 
     it "should be able to remove all sources on a class" do
@@ -287,8 +256,6 @@ describe 'acts_as_sourceable' do
       @record.sources.should == []
       @record.reload.sourced?.should be_false
     end
-
-    it_should_behave_like "acts_as_sourceable models with any options"    
   end  
 
 end
@@ -300,7 +267,7 @@ def setup
   SourceableRecord.delete_all
   SourceableThroughRecord.delete_all
   CachedSourceableRecord.delete_all
-  ActsAsSourceable::Registry.delete_all
+  ActsAsSourceable::RegistryEntry.delete_all
 
   @holding_institution = HoldingInstitution.create!
   @collection = Collection.create!

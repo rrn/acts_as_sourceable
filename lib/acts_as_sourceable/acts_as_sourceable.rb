@@ -15,8 +15,8 @@ module ActsAsSourceable
         if acts_as_sourceable_options[:through]
           def sources; send(acts_as_sourceable_options[:through]) || []; end
         else
-          has_one :sourceable_registry_entry, :class_name => 'ActsAsSourceable::Registry', :as => :sourceable, :dependent => :delete
-          def sources; sourceable_registry_entry.try(:sources) || []; end
+          has_many :sourceable_registry_entries, :class_name => 'ActsAsSourceable::RegistryEntry', :as => :sourceable, :dependent => :delete_all
+          def sources; self.sourceable_registry_entries.includes(:source).collect(&:source); end
         end
       end
 
@@ -33,25 +33,18 @@ module ActsAsSourceable
         scope :sourced, joins(options[:through]).uniq
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       else
-        scope :sourced, joins(:sourceable_registry_entry)
+        scope :sourced, joins(:sourceable_registry_entries).uniq
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       end
 
       # Add a way of finding everything sourced by a particular set of records
       if options[:through]
-        def sourced_by(*sources)
-          raise NotImplementedError # TODO
+        def self.sourced_by(source)
+          self.joins(acts_as_sourceable_options[:through]).where(reflect_on_association(acts_as_sourceable_options[:through]).table_name => {:id => source.id})
         end
       else
-        def sourced_by(*sources)
-          holding_institution_ids, collection_ids, item_ids = ActsAsSourceable::HelperMethods.group_ids_by_class(sources)
-
-          arel_table = ActsAsSourceable::Registry.arel_table
-          h_contraint = arel_table[:holding_institution_ids].array_overlap(holding_institution_ids)
-          c_contraint = arel_table[:collection_ids].array_overlap(collection_ids)
-          i_contraint = arel_table[:item_ids].array_overlap(item_ids)
-
-          sourced.where(h_contraint.or(c_contraint).or(i_contraint))
+        def self.sourced_by(source)
+          self.joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq
         end
       end
 
@@ -86,7 +79,7 @@ module ActsAsSourceable
     
     def unsource
       scoping { @klass.update_all("#{acts_as_sourceable_options[:cache_column]} = false", @klass.acts_as_sourceable_options[:cache_column] => true) } if @klass.acts_as_sourceable_options[:cache_column]
-      scoping { ActsAsSourceable::Registry.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select("#{@klass.table_name}.id").to_sql})", @klass.name).delete_all }
+      scoping { ActsAsSourceable::RegistryEntry.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select("#{@klass.table_name}.id").to_sql})", @klass.name).delete_all }
     end
   end
 
@@ -115,94 +108,73 @@ module ActsAsSourceable
 
     # Add the given holding_institutions, collections, and items
     def add_sources(*sources)
-      holding_institution_ids, collection_ids, item_ids = ActsAsSourceable::HelperMethods.group_ids_by_class(sources)
-      registry = init_registry_entry
-      set_sources(registry.holding_institution_ids + holding_institution_ids, registry.collection_ids + collection_ids, registry.item_ids + item_ids)
+      raise "Cannot set sources of a #{self.class.name}. They are sourced through #{acts_as_sourceable_options[:through]}" if acts_as_sourceable_options[:through]
+
+      sources = Array(sources).flatten
+      sources.each do |source|
+        source_scope(source).first_or_create!
+      end
+      update_sourceable_cache_column(true) if sources.present?
     end
     alias_method :add_source, :add_sources
 
     # Remove the given holding_institutions, collections, and items
     def remove_sources(*sources)
-      holding_institution_ids, collection_ids, item_ids = ActsAsSourceable::HelperMethods.group_ids_by_class(sources)
-      registry = init_registry_entry
-      set_sources(registry.holding_institution_ids - holding_institution_ids, registry.collection_ids - collection_ids, registry.item_ids - item_ids)
+      raise "Cannot set sources of a #{self.class.name}. They are sourced through #{acts_as_sourceable_options[:through]}" if acts_as_sourceable_options[:through]
+
+      sources = Array(sources).flatten
+      sources.each do |source|
+        source_scope(source).delete_all
+      end
+      update_sourceable_cache_column(false) if self.sourceable_registry_entries.empty?
     end
     alias_method :remove_source, :remove_sources
-
-    # Record which holding_institution, collection, and optionally which item the record came from
-    # If the record has no sources, the sourceable institution is deleted
-    # NOTE: HoldingInstitutions are stored in the production database (so don't get any crazy ideas when refactoring this code)
-    def set_sources(holding_institution_ids, collection_ids, item_ids)
-      registry = init_registry_entry
-      registry.holding_institution_ids = Array(holding_institution_ids).uniq
-      registry.collection_ids = Array(collection_ids).uniq
-      registry.item_ids = Array(item_ids).uniq
-
-      if holding_institution_ids.any? || collection_ids.any? || item_ids.any?
-        registry.save!
-        set_sourceable_cache_column(true)
-      elsif registry.persisted?
-        registry.destroy
-        set_sourceable_cache_column(false)
-      end
-    end
     
     private
 
-    def init_registry_entry
-      raise "Cannot set sources of a #{self.class.name}. They are sourced through #{acts_as_sourceable_options[:through]}" if acts_as_sourceable_options[:through]
-
-      ActsAsSourceable::Registry.where(:sourceable_type => self.class.name, :sourceable_id => self.id).first_or_initialize
+    def source_scope(source)
+      ActsAsSourceable::RegistryEntry.where(:sourceable_type => self.class.name, :sourceable_id => self.id, :source_type => source.class, :source_id => source.id)
     end
-    
-    def set_sourceable_cache_column(value)
-      update_column(acts_as_sourceable_options[:cache_column], value) if acts_as_sourceable_options[:cache_column] # Update via sql because we don't need callbacks and validations called
+ 
+    def update_sourceable_cache_column(value = nil)
+      return unless acts_as_sourceable_options[:cache_column] # Update via sql because we don't need callbacks and validations called
+
+      if value
+        update_column(acts_as_sourceable_options[:cache_column], value)
+      else
+        update_column(acts_as_sourceable_options[:cache_column], sourceable_registry_entries.present?)
+      end
     end
   end
 
   module HelperMethods
-    # Given an array of HoldingInstitutions, Collections, and Items, returns arrays containing only the records of each class.
-    # Order of return arrays is [HoldingInstitutions, Collections, Items]
-    def self.group_by_class(*sources)
-      groups = Array(sources).flatten.group_by(&:class)
-      return [groups[HoldingInstitution] || [], groups[Collection] || [], groups[Item] || []]
-    end
-
-    def self.group_ids_by_class(*sources)
-      group_by_class(*sources).collect!{|group| group.collect(&:id)}
-    end
-
     # Removes registry entries that no longer belong to a sourceable, item, collection, or holding institution
     def self.garbage_collect
       # Remove all registry entries where the sourceable is gone
-      ActsAsSourceable::Registry.pluck(:sourceable_type).uniq.each do |sourceable_type|
+      ActsAsSourceable::RegistryEntry.pluck(:sourceable_type).uniq.each do |sourceable_type|
         sourceable_table_name = sourceable_type.constantize.table_name
-        sourceable_id_sql = ActsAsSourceable::Registry
-          .select("#{ActsAsSourceable::Registry.table_name}.id")
+        sourceable_id_sql = ActsAsSourceable::RegistryEntry
+          .select("#{ActsAsSourceable::RegistryEntry.table_name}.id")
           .where(:sourceable_type => sourceable_type)
-          .joins("LEFT OUTER JOIN #{sourceable_table_name} ON #{sourceable_table_name}.id = #{ActsAsSourceable::Registry.table_name}.sourceable_id")
+          .joins("LEFT OUTER JOIN #{sourceable_table_name} ON #{sourceable_table_name}.id = #{ActsAsSourceable::RegistryEntry.table_name}.sourceable_id")
           .where("#{sourceable_table_name}.id IS NULL").to_sql
 
-        ActsAsSourceable::Registry.delete_all("id IN (#{sourceable_id_sql})")
+        ActsAsSourceable::RegistryEntry.delete_all("id IN (#{sourceable_id_sql})")
       end
 
-      # Repair all Registry entries that reference missing items, collections, or holding institutions
-      holding_institution_ids = HoldingInstitution.pluck(:id)
-      collection_ids = Collection.pluck(:id)
+      # Remove all registry entries where the source is gone
+      ActsAsSourceable::RegistryEntry.pluck(:source_type).uniq.each do |source_type|
+        source_class = source_type.constantize
+        source_table_name = source_class.table_name
+        source_id_sql = ActsAsSourceable::RegistryEntry
+          .select("#{ActsAsSourceable::RegistryEntry.table_name}.id")
+          .where(:source_type => source_type)
+          .joins("LEFT OUTER JOIN #{source_table_name} ON #{source_table_name}.id = #{ActsAsSourceable::RegistryEntry.table_name}.source_id")
+          .where("#{source_table_name}.id IS NULL").to_sql
 
-      [:holding_institution, :collection, :item].each do |type|
-        registries = ActsAsSourceable::Registry
-        registries = registries.joins("LEFT OUTER JOIN #{type}s ON #{type}s.id = ANY(#{type}_ids)")
-        registries = registries.group("#{ActsAsSourceable::Registry.table_name}.id")        
-        # Having at least one listed source_id and no matching sources, or fewer matches than the total listed sources
-        registries = registries.having("(array_length(#{type}_ids, 1) > 0 AND EVERY(#{type}s.id IS NULL)) OR count(*) < array_length(#{type}_ids, 1)")
-
-        # Fix the registry entries that are wrong
-        registries.includes(:sourceable).each do |registry|
-          item_ids = Item.where(:id => registry.item_ids).pluck(:id)
-          # ActiveRecord::Base.logger.debug "Registry #{registry.id}: holding_institution_ids: #{registry.holding_institution_ids.inspect} => #{registry.holding_institution_ids & holding_institution_ids}, collection_ids: #{registry.collection_ids.inspect} => #{registry.collection_ids & collection_ids}, item_ids: #{registry.item_ids.inspect} => #{registry.item_ids & item_ids} "
-          registry.sourceable.set_sources(registry.holding_institution_ids & holding_institution_ids, registry.collection_ids & collection_ids, registry.item_ids & item_ids)
-        end
+        sourceables = ActsAsSourceable::RegistryEntry.where("id IN (#{source_id_sql})").collect(&:sourceable)
+        ActsAsSourceable::RegistryEntry.where("id IN (#{source_id_sql})").delete_all
+        sourceables.each{|sourceable| sourceable.send(:update_sourceable_cache_column) }
       end
     end
   end
