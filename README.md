@@ -7,7 +7,6 @@ Allows the RRN to perform garbage project on categories that are no longer refer
 ### In your gemfile
 ```ruby
 gem 'acts_as_sourceable'
-gem 'postgres_ext' # Currently, this needs to be included for the migration to work.
 ```
 
 ### Migration
