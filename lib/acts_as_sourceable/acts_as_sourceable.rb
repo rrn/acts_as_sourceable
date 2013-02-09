@@ -31,10 +31,10 @@ module ActsAsSourceable
         scope :unsourced, where(options[:cache_column] => false)
       elsif options[:through]
         scope :sourced, joins(options[:through]).uniq
-        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
+        scope :unsourced, where("#{table_name}.id NOT IN (#{sourced.select("#{table_name}.id").to_sql})")
       else
         scope :sourced, joins(:sourceable_registry_entries).uniq
-        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
+        scope :unsourced, where("#{table_name}.id NOT IN (#{sourced.select("#{table_name}.id").to_sql})")
       end
 
       # Add a way of finding everything sourced by a particular set of records
@@ -98,7 +98,7 @@ module ActsAsSourceable
       if acts_as_sourceable_options[:cache_column]
         self[acts_as_sourceable_options[:cache_column]]
       else
-        self.class.sourced.exists?(self)
+        self.class.sourced.uniq(false).exists?(self) # Remove the uniqness check because it allows for better use of the indexes
       end
     end
 

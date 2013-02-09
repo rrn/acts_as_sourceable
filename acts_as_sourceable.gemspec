@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name = 'acts_as_sourceable'
-  s.version = '2.1.0'
-  s.date = %q{2013-01-26}
+  s.version = '2.1.1'
+  s.date = %q{2013-02-09}
   s.email = 'technical@rrnpilot.org'
   s.homepage = 'http://github.com/rrn/acts_as_sourceable'
   s.summary = 'perform garbage collection on categories that are no longer referenced'
