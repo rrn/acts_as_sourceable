@@ -31,10 +31,10 @@ module ActsAsSourceable
         scope :unsourced, where(options[:cache_column] => false)
       elsif options[:through]
         scope :sourced, joins(options[:through]).uniq
-        scope :unsourced, where("#{table_name}.id NOT IN (#{sourced.select("#{table_name}.id").to_sql})")
+        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       else
         scope :sourced, joins(:sourceable_registry_entries).uniq
-        scope :unsourced, where("#{table_name}.id NOT IN (#{sourced.select("#{table_name}.id").to_sql})")
+        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       end
 
       # Add a way of finding everything sourced by a particular set of records
