@@ -34,7 +34,7 @@ module ActsAsSourceable
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       else
         scope :sourced, joins(:sourceable_registry_entries).uniq
-        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
+        scope :unsourced, joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       end
 
       # Add a way of finding everything sourced by a particular set of records
