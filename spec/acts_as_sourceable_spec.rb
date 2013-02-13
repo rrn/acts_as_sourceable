@@ -149,6 +149,15 @@ describe 'acts_as_sourceable' do
       @klass.sourced_by(@item2).should == []
     end
 
+    it "should be able to count all sourced records" do
+      @record.add_source(@item1, @holding_institution)
+      @klass.sourced.count.should == 1
+    end
+
+    it "should be able to count all unsource records" do
+      @klass.unsourced.count.should == 1
+    end    
+
     # RELATIONS
 
     it "should be able to add sources on a relation" do
@@ -208,7 +217,15 @@ describe 'acts_as_sourceable' do
     it "should be able to return all records sourced by a specific record" do
       @klass.sourced_by(@item1).should == [@sourced_record]
       @klass.sourced_by(@item2).should == []
-    end    
+    end
+
+    it "should be able to count all sourced records" do
+      @klass.sourced.count.should == 1
+    end
+
+    it "should be able to count all unsource records" do
+      @klass.unsourced.count.should == 1
+    end
 
     it "should not return items that are source by a record with the same id, but of a different class" do
       pending

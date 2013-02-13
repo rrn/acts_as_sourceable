@@ -30,10 +30,14 @@ module ActsAsSourceable
         scope :sourced, where(options[:cache_column] => true)
         scope :unsourced, where(options[:cache_column] => false)
       elsif options[:through]
-        scope :sourced, joins(options[:through]).uniq
+        scope :sourced, joins(options[:through]).group("#{table_name}.#{primary_key}") do
+          include ActsAsSourceable::GroupScopeExtensions
+        end
         scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       else
-        scope :sourced, joins(:sourceable_registry_entries).uniq
+        scope :sourced, joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}") do
+          include ActsAsSourceable::GroupScopeExtensions
+        end
         scope :unsourced, joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
       end
 
@@ -80,6 +84,13 @@ module ActsAsSourceable
     def unsource
       scoping { @klass.update_all("#{acts_as_sourceable_options[:cache_column]} = false", @klass.acts_as_sourceable_options[:cache_column] => true) } if @klass.acts_as_sourceable_options[:cache_column]
       scoping { ActsAsSourceable::RegistryEntry.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select("#{@klass.table_name}.id").to_sql})", @klass.name).delete_all }
+    end
+  end
+
+  module GroupScopeExtensions
+    # Extension for scopes where we're grouping but want to be able to call count
+    def count
+      connection.select_value("SELECT count(1) FROM (#{to_sql}) AS count_all").to_i
     end
   end
 
