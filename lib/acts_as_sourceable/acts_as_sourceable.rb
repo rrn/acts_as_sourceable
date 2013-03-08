@@ -27,37 +27,29 @@ module ActsAsSourceable
       # Elsif the records can be derived, we need to check the flattened item tables for any references
       # Else we check the registry_entries to see if the record has a recorded source
       if options[:cache_column]
-        scope :sourced, where(options[:cache_column] => true)
-        scope :unsourced, where(options[:cache_column] => false)
+        scope :sourced,   lambda { where(options[:cache_column] => true) }
+        scope :unsourced, lambda { where(options[:cache_column] => false) }
       elsif options[:through]
-        scope :sourced, joins(options[:through]).group("#{table_name}.#{primary_key}") do
-          include ActsAsSourceable::GroupScopeExtensions
-        end
-        scope :unsourced, joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
+        scope :sourced,   lambda { joins(options[:through]).group("#{table_name}.#{primary_key}") } do include ActsAsSourceable::GroupScopeExtensions; end
+        scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       else
-        scope :sourced, joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}") do
-          include ActsAsSourceable::GroupScopeExtensions
-        end
-        scope :unsourced, joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL")
+        scope :sourced,   lambda { joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}") } do include ActsAsSourceable::GroupScopeExtensions; end
+        scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       end
 
       # Add a way of finding everything sourced by a particular set of records
       if options[:through]
-        def self.sourced_by(source)
-          self.joins(acts_as_sourceable_options[:through]).where(reflect_on_association(acts_as_sourceable_options[:through]).table_name => {:id => source.id})
-        end
+        scope :sourced_by, lambda { |source| joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
       else
-        def self.sourced_by(source)
-          self.joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq
-        end
+        scope :sourced_by, lambda { |source| joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq }
       end
 
       # Create a scope that returns record that is not used by the associations in options[:used_by]
       if options[:used_by]
-        scope :unused, where(Array(options[:used_by]).collect {|usage_association| "#{table_name}.id NOT IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' AND '))
-        scope :orphaned, unsourced.unused
+        scope :unused,   lambda { where(Array(options[:used_by]).collect {|usage_association| "#{table_name}.id NOT IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' AND ')) }
+        scope :orphaned, lambda { unsourced.unused }
       else
-        scope :orphaned, unsourced
+        scope :orphaned, lambda { unsourced }
       end
 
       # ACTIVE RELATION SETUP
