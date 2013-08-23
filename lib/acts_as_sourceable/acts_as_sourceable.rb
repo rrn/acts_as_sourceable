@@ -74,7 +74,8 @@ module ActsAsSourceable
     alias_method :add_source, :add_sources
     
     def unsource
-      scoping { @klass.update_all("#{acts_as_sourceable_options[:cache_column]} = false", @klass.acts_as_sourceable_options[:cache_column] => true) } if @klass.acts_as_sourceable_options[:cache_column]
+      # OPTIMIZATION: it's faster to only set the cache column to false if it is true instead of setting all to false indiscriminately
+      scoping { @klass.where(@klass.acts_as_sourceable_options[:cache_column] => true).update_all("#{acts_as_sourceable_options[:cache_column]} = false") } if @klass.acts_as_sourceable_options[:cache_column]
       scoping { ActsAsSourceable::RegistryEntry.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select("#{@klass.table_name}.id").to_sql})", @klass.name).delete_all }
     end
   end
