@@ -52,7 +52,7 @@ describe 'acts_as_sourceable' do
 
   describe "a model that just acts_as_sourceable" do
     before(:each) do
-      @klass = SourceableRecord       
+      @klass = SourceableRecord
       @record = @klass.create!
     end
 
@@ -154,9 +154,13 @@ describe 'acts_as_sourceable' do
       @klass.sourced.count.should == 1
     end
 
-    it "should be able to count all unsource records" do
+    it "should be able to count all unsourced records" do
       @klass.unsourced.count.should == 1
-    end    
+    end
+
+    it "should be able to call empty? on unsourced records" do
+      @klass.unsourced.should_not be_empty
+    end
 
     # RELATIONS
 
@@ -175,13 +179,15 @@ describe 'acts_as_sourceable' do
       @record.add_source(@item1, @item2, @collection, @holding_institution)
       @klass.unsource
       @record.sources.should == []
-    end    
+    end
 
     it "should be able to remove all sources on a relation" do
-      @record.add_source(@item1, @item2, @collection, @holding_institution)
+      @record.add_source(@item1)
+      @klass.sourced_by(@item2).unsource
+      @record.sources.should == [@item1]
       @klass.sourced_by(@item1).unsource
       @record.sources.should == []
-    end    
+    end
 
     # OTHER
 
@@ -229,8 +235,8 @@ describe 'acts_as_sourceable' do
 
     it "should not return items that are source by a record with the same id, but of a different class" do
       pending
-    end    
-  end  
+    end
+  end
 
   describe "a model that acts_as_sourceable with a cache_column" do
     before(:each) do
@@ -253,11 +259,9 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not update the cache column when removing one of many sources" do
-      debug do
       @record.add_source(@holding_institution, @collection)
       @record.remove_source(@holding_institution)
       @record.reload.sourced.should be_true
-      end
     end
 
     it "should be able to remove all sources on a class" do
@@ -265,7 +269,7 @@ describe 'acts_as_sourceable' do
       @klass.unsource
       @record.sources.should == []
       @record.reload.sourced?.should be_false
-    end    
+    end
 
     it "should be able to remove all sources on a relation" do
       @record.add_source(@item1, @item2, @collection, @holding_institution)
@@ -273,7 +277,7 @@ describe 'acts_as_sourceable' do
       @record.sources.should == []
       @record.reload.sourced?.should be_false
     end
-  end  
+  end
 
 end
 
@@ -289,7 +293,7 @@ def setup
   @holding_institution = HoldingInstitution.create!
   @collection = Collection.create!
   @item1 = Item.create!
-  @item2 = Item.create!  
+  @item2 = Item.create!
 end
 
 def debug

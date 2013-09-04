@@ -5,7 +5,7 @@ require 'acts_as_sourceable'
 
 ActiveRecord::Base.logger = Logger.new(STDOUT)
 ActiveRecord::Base.logger.level = Logger::INFO
-ActiveRecord::Base.establish_connection(:adapter => "postgresql", :database => "acts_as_sourceable_test")
+ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ':memory:')
 
 ActiveRecord::Schema.define(:version => 0) do
 

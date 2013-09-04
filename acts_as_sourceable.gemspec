@@ -9,4 +9,6 @@ Gem::Specification.new do |s|
   s.authors = ['Nicholas Jakobsen', 'Ryan Wallace']
   s.require_paths = ["lib"]
   s.files = Dir.glob("{lib}/**/*") + %w(README.md)
+
+  s.add_dependency('rails', '~> 4.0')
 end

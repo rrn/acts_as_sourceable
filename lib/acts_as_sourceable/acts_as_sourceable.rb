@@ -30,10 +30,10 @@ module ActsAsSourceable
         scope :sourced,   lambda { where(options[:cache_column] => true) }
         scope :unsourced, lambda { where(options[:cache_column] => false) }
       elsif options[:through]
-        scope :sourced,   lambda { joins(options[:through]).group("#{table_name}.#{primary_key}") } do include ActsAsSourceable::GroupScopeExtensions; end
+        scope :sourced,   lambda { from(unscoped.joins(options[:through]).group("#{table_name}.#{primary_key}"), table_name) }
         scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       else
-        scope :sourced,   lambda { joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}") } do include ActsAsSourceable::GroupScopeExtensions; end
+        scope :sourced,   lambda { from(unscoped.joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}"), table_name) }
         scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       end
 
@@ -51,53 +51,36 @@ module ActsAsSourceable
       else
         scope :orphaned, lambda { unsourced }
       end
-
-      # ACTIVE RELATION SETUP
-      ActiveRecord::Relation.send(:include, ActsAsSourceable::ActiveRelationMethods)
-
-      # Delegate the relation methods to the relation so we can call Klass.unsourced (do this in the metaclass because all these methods are class level)
-      class << self
-        delegate :add_sources, :add_source, :remove_source, :remove_sources, :unsource, :to => :scoped
-      end
-    end
-  end
-  
-  module ActiveRelationMethods
-    def remove_sources(*sources)
-      scoping { @klass.find_each{|record| record.remove_sources(*sources) } }
-    end
-    alias_method :remove_source, :remove_sources
-
-    def add_sources(*sources)
-      scoping { @klass.find_each{|record| record.add_sources(*sources) } }
-    end
-    alias_method :add_source, :add_sources
-    
-    def unsource
-      # OPTIMIZATION: it's faster to only set the cache column to false if it is true instead of setting all to false indiscriminately
-      scoping { @klass.where(@klass.acts_as_sourceable_options[:cache_column] => true).update_all("#{acts_as_sourceable_options[:cache_column]} = false") } if @klass.acts_as_sourceable_options[:cache_column]
-      scoping { ActsAsSourceable::RegistryEntry.where("sourceable_type = ? AND sourceable_id IN (#{@klass.select("#{@klass.table_name}.id").to_sql})", @klass.name).delete_all }
-    end
-  end
-
-  module GroupScopeExtensions
-    # Extension for scopes where we're grouping but want to be able to call count
-    def count
-      connection.select_value("SELECT count(1) FROM (#{to_sql}) AS count_all").to_i
     end
   end
 
   module ClassMethods
     def acts_like_sourceable?
       true
-    end    
+    end
+
+    def remove_sources(*sources)
+      find_each{|record| record.remove_sources(*sources) }
+    end
+    alias_method :remove_source, :remove_sources
+
+    def add_sources(*sources)
+      find_each{|record| record.add_sources(*sources) }
+    end
+    alias_method :add_source, :add_sources
+
+    def unsource
+      # OPTIMIZATION: it's faster to only set the cache column to false if it is true instead of setting all to false indiscriminately
+      where(acts_as_sourceable_options[:cache_column] => true).update_all(acts_as_sourceable_options[:cache_column] => false) if acts_as_sourceable_options[:cache_column]
+      ActsAsSourceable::RegistryEntry.where(:sourceable_type => self.name, :sourceable_id => self.all).delete_all
+    end
   end
 
   module InstanceMethods
     def acts_like_sourceable?
       true
     end
-        
+
     def sourced?
       if acts_as_sourceable_options[:cache_column]
         self[acts_as_sourceable_options[:cache_column]]
@@ -133,13 +116,13 @@ module ActsAsSourceable
       update_sourceable_cache_column(false) if self.sourceable_registry_entries.empty?
     end
     alias_method :remove_source, :remove_sources
-    
+
     private
 
     def source_scope(source)
       ActsAsSourceable::RegistryEntry.where(:sourceable_type => self.class.name, :sourceable_id => self.id, :source_type => source.class, :source_id => source.id)
     end
- 
+
     def update_sourceable_cache_column(value = nil)
       return unless acts_as_sourceable_options[:cache_column] # Update via sql because we don't need callbacks and validations called
 
