@@ -31,17 +31,17 @@ module ActsAsSourceable
         scope :unsourced, lambda { where(options[:cache_column] => false) }
       elsif options[:through]
         scope :sourced,   lambda { from(unscoped.joins(options[:through]).group("#{table_name}.#{primary_key}"), table_name) }
-        scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
+        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       else
         scope :sourced,   lambda { from(unscoped.joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}"), table_name) }
-        scope :unsourced, lambda { joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
+        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       end
 
       # Add a way of finding everything sourced by a particular set of records
       if options[:through]
-        scope :sourced_by, lambda { |source| joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
+        scope :sourced_by, lambda { |source| readonly(false).joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
       else
-        scope :sourced_by, lambda { |source| joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq }
+        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq }
       end
 
       # Create a scope that returns record that is not used by the associations in options[:used_by]

@@ -162,6 +162,16 @@ describe 'acts_as_sourceable' do
       @klass.unsourced.should_not be_empty
     end
 
+    it "should not be readonly when fetched through the unsourced scope" do
+      @klass.unsourced.first.readonly?.should be_false
+    end
+
+    it "should not be readonly when fetched through the sourced_by scope" do
+      @record.add_source(@item1, @holding_institution)
+
+      @klass.sourced_by(@item1).first.readonly?.should be_false
+    end
+
     # RELATIONS
 
     it "should be able to add sources on a relation" do
@@ -231,6 +241,14 @@ describe 'acts_as_sourceable' do
 
     it "should be able to count all unsource records" do
       @klass.unsourced.count.should == 1
+    end
+
+    it "should not be readonly when fetched through a scope" do
+      @klass.unsourced.first.readonly?.should be_false
+    end
+
+    it "should not be readonly when fetched through the sourced_by scope" do
+      @klass.sourced_by(@item1).first.readonly?.should be_false
     end
 
     it "should not return items that are source by a record with the same id, but of a different class" do
