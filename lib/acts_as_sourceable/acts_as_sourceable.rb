@@ -47,6 +47,7 @@ module ActsAsSourceable
       # Create a scope that returns record that is not used by the associations in options[:used_by]
       if options[:used_by]
         scope :unused,   lambda { where(Array(options[:used_by]).collect {|usage_association| "#{table_name}.id NOT IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' AND ')) }
+        scope :used,     lambda { where(Array(options[:used_by]).collect {|usage_association| "#{table_name}.id IN (" + select("#{table_name}.id").joins(usage_association).group("#{table_name}.id").to_sql + ")"}.join(' OR ')) }
         scope :orphaned, lambda { unsourced.unused }
       else
         scope :orphaned, lambda { unsourced }
@@ -91,6 +92,18 @@ module ActsAsSourceable
 
     def unsourced?
       !sourced?
+    end
+
+    def used?
+      acts_as_sourceable_options[:used_by].any?{|association| send(association).present? }
+    end
+
+    def unused?
+      !used?
+    end
+
+    def usages
+      Hash[acts_as_sourceable_options[:used_by].collect{|association| [association, send(association)] }]
     end
 
     # Add the given holding_institutions, collections, and items
