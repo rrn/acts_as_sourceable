@@ -112,7 +112,9 @@ module ActsAsSourceable
 
       sources = Array(sources).flatten
       sources.each do |source|
-        source_scope(source).first_or_create!
+        entry = source_registry_entries(source).first_or_initialize
+        # touch existing RegistryEntry to keep track of "freshness" of the sourcing
+        entry.persisted? ? entry.touch : entry.save!
       end
       update_sourceable_cache_column(true) if sources.present?
     end
@@ -124,7 +126,7 @@ module ActsAsSourceable
 
       sources = Array(sources).flatten
       sources.each do |source|
-        source_scope(source).delete_all
+        source_registry_entries(source).delete_all
       end
       update_sourceable_cache_column(false) if self.sourceable_registry_entries.empty?
     end
@@ -132,8 +134,8 @@ module ActsAsSourceable
 
     private
 
-    def source_scope(source)
-      ActsAsSourceable::RegistryEntry.where(:sourceable_type => self.class.name, :sourceable_id => self.id, :source_type => source.class, :source_id => source.id)
+    def source_registry_entries(source)
+      sourceable_registry_entries.where(:source_type => source.class, :source_id => source.id)
     end
 
     def update_sourceable_cache_column(value = nil)
