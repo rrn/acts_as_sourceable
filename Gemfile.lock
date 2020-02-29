@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    acts_as_sourceable (2.2.5)
+    acts_as_sourceable (2.3.0)
       rails (~> 4.0)
 
 GEM
@@ -88,7 +88,7 @@ GEM
       activesupport (= 4.2.1)
       rake (>= 0.8.7)
       thor (>= 0.18.1, < 2.0)
-    rake (10.4.2)
+    rake (13.0.1)
     rspec-collection_matchers (1.1.2)
       rspec-expectations (>= 2.99.0.beta1)
     rspec-core (2.99.2)
