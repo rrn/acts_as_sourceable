@@ -128,7 +128,7 @@ module ActsAsSourceable
       sources.each do |source|
         source_registry_entries(source).delete_all
       end
-      update_sourceable_cache_column(false) if self.sourceable_registry_entries.empty?
+      update_sourceable_cache_column(false) unless self.sourceable_registry_entries.exists?
     end
     alias_method :remove_source, :remove_sources
 
@@ -141,10 +141,10 @@ module ActsAsSourceable
     def update_sourceable_cache_column(value = nil)
       return unless acts_as_sourceable_options[:cache_column] # Update via sql because we don't need callbacks and validations called
 
-      if value
-        update_column(acts_as_sourceable_options[:cache_column], value)
+      if value.nil?
+        update_column(acts_as_sourceable_options[:cache_column], sourceable_registry_entries.exists?)
       else
-        update_column(acts_as_sourceable_options[:cache_column], sourceable_registry_entries.present?)
+        update_column(acts_as_sourceable_options[:cache_column], value)
       end
     end
   end
