@@ -161,7 +161,7 @@ module ActsAsSourceable
           .joins("LEFT OUTER JOIN #{sourceable_table_name} ON #{sourceable_table_name}.id = #{ActsAsSourceable::RegistryEntry.table_name}.sourceable_id")
           .where("#{sourceable_table_name}.id IS NULL").to_sql
 
-        ActsAsSourceable::RegistryEntry.delete_all("id IN (#{sourceable_id_sql})")
+        ActsAsSourceable::RegistryEntry.where("id IN (#{sourceable_id_sql})").delete_all
       end
 
       # Remove all registry entries where the source is gone
