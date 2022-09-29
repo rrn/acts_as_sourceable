@@ -2,6 +2,7 @@ $LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
 require 'logger'
 require 'active_record'
 require 'acts_as_sourceable'
+require 'pry-byebug'
 
 ActiveRecord::Base.logger = Logger.new(STDOUT)
 ActiveRecord::Base.logger.level = Logger::INFO
