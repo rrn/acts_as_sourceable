@@ -209,7 +209,7 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not be able to add a model other than and Item, Collection, or Holding Institution as a source" do
-      pending
+      skip
     end
   end
 
@@ -252,7 +252,7 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not return items that are source by a record with the same id, but of a different class" do
-      pending
+      skip
     end
   end
 
