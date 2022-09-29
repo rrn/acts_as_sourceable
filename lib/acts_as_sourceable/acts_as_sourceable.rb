@@ -34,14 +34,14 @@ module ActsAsSourceable
         scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       else
         scope :sourced,   lambda { from(unscoped.joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}"), table_name) }
-        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
+        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self.klass.name).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       end
 
       # Add a way of finding everything sourced by a particular set of records
       if options[:through]
         scope :sourced_by, lambda { |source| readonly(false).joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
       else
-        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq }
+        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class.name, :source_id => source.id}).uniq }
       end
 
       # Create a scope that returns record that is not used by the associations in options[:used_by]
@@ -135,7 +135,7 @@ module ActsAsSourceable
     private
 
     def source_registry_entries(source)
-      sourceable_registry_entries.where(:source_type => source.class, :source_id => source.id)
+      sourceable_registry_entries.where(:source_type => source.class.name, :source_id => source.id)
     end
 
     def update_sourceable_cache_column(value = nil)

@@ -45,7 +45,7 @@ describe 'acts_as_sourceable' do
         SourceableRecord.delete(record.id)
         ActsAsSourceable::HelperMethods.garbage_collect
 
-        ActsAsSourceable::RegistryEntry.where(:sourceable_type => SourceableRecord, :sourceable_id => record.id).exists?.should be_false
+        ActsAsSourceable::RegistryEntry.where(:sourceable_type => SourceableRecord.class.name, :sourceable_id => record.id).exists?.should be_false
       end
     end
   end
@@ -205,7 +205,7 @@ describe 'acts_as_sourceable' do
       @record.add_source(@holding_institution)
       @record.destroy
 
-      ActsAsSourceable::RegistryEntry.where(:sourceable_id => @record.id, :sourceable_type => @record.class).exists?.should be_false
+      ActsAsSourceable::RegistryEntry.where(:sourceable_id => @record.id, :sourceable_type => @record.class.name).exists?.should be_false
     end
 
     it "should not be able to add a model other than and Item, Collection, or Holding Institution as a source" do
