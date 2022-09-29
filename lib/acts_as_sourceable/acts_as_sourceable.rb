@@ -41,7 +41,7 @@ module ActsAsSourceable
       if options[:through]
         scope :sourced_by, lambda { |source| readonly(false).joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
       else
-        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class.name, :source_id => source.id}).uniq }
+        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class.name, :source_id => source.id}).distinct }
       end
 
       # Create a scope that returns record that is not used by the associations in options[:used_by]
@@ -153,7 +153,7 @@ module ActsAsSourceable
     # Removes registry entries that no longer belong to a sourceable, item, collection, or holding institution
     def self.garbage_collect
       # Remove all registry entries where the sourceable is gone
-      ActsAsSourceable::RegistryEntry.uniq.pluck(:sourceable_type).each do |sourceable_type|
+      ActsAsSourceable::RegistryEntry.distinct.pluck(:sourceable_type).each do |sourceable_type|
         sourceable_table_name = sourceable_type.constantize.table_name
         sourceable_id_sql = ActsAsSourceable::RegistryEntry
           .select("#{ActsAsSourceable::RegistryEntry.table_name}.id")
@@ -165,7 +165,7 @@ module ActsAsSourceable
       end
 
       # Remove all registry entries where the source is gone
-      ActsAsSourceable::RegistryEntry.uniq.pluck(:source_type).each do |source_type|
+      ActsAsSourceable::RegistryEntry.distinct.pluck(:source_type).each do |source_type|
         source_class = source_type.constantize
         source_table_name = source_class.table_name
         source_id_sql = ActsAsSourceable::RegistryEntry
