@@ -34,14 +34,14 @@ module ActsAsSourceable
         scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{sourced.to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       else
         scope :sourced,   lambda { from(unscoped.joins(:sourceable_registry_entries).group("#{table_name}.#{primary_key}"), table_name) }
-        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
+        scope :unsourced, lambda { readonly(false).joins("LEFT OUTER JOIN (#{ActsAsSourceable::RegistryEntry.select('sourceable_id AS id').where(:sourceable_type => self.klass.name).to_sql}) sourced ON sourced.id = #{table_name}.id").where("sourced.id IS NULL") }
       end
 
       # Add a way of finding everything sourced by a particular set of records
       if options[:through]
         scope :sourced_by, lambda { |source| readonly(false).joins(options[:through]).where(reflect_on_association(options[:through]).table_name => {:id => source.id}) }
       else
-        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class, :source_id => source.id}).uniq }
+        scope :sourced_by, lambda { |source| readonly(false).joins(:sourceable_registry_entries).where(ActsAsSourceable::RegistryEntry.table_name => {:source_type => source.class.name, :source_id => source.id}).distinct }
       end
 
       # Create a scope that returns record that is not used by the associations in options[:used_by]
@@ -128,23 +128,23 @@ module ActsAsSourceable
       sources.each do |source|
         source_registry_entries(source).delete_all
       end
-      update_sourceable_cache_column(false) if self.sourceable_registry_entries.empty?
+      update_sourceable_cache_column(false) unless self.sourceable_registry_entries.exists?
     end
     alias_method :remove_source, :remove_sources
 
     private
 
     def source_registry_entries(source)
-      sourceable_registry_entries.where(:source_type => source.class, :source_id => source.id)
+      sourceable_registry_entries.where(:source_type => source.class.name, :source_id => source.id)
     end
 
     def update_sourceable_cache_column(value = nil)
       return unless acts_as_sourceable_options[:cache_column] # Update via sql because we don't need callbacks and validations called
 
-      if value
-        update_column(acts_as_sourceable_options[:cache_column], value)
+      if value.nil?
+        update_column(acts_as_sourceable_options[:cache_column], sourceable_registry_entries.exists?)
       else
-        update_column(acts_as_sourceable_options[:cache_column], sourceable_registry_entries.present?)
+        update_column(acts_as_sourceable_options[:cache_column], value)
       end
     end
   end
@@ -153,7 +153,7 @@ module ActsAsSourceable
     # Removes registry entries that no longer belong to a sourceable, item, collection, or holding institution
     def self.garbage_collect
       # Remove all registry entries where the sourceable is gone
-      ActsAsSourceable::RegistryEntry.uniq.pluck(:sourceable_type).each do |sourceable_type|
+      ActsAsSourceable::RegistryEntry.distinct.pluck(:sourceable_type).each do |sourceable_type|
         sourceable_table_name = sourceable_type.constantize.table_name
         sourceable_id_sql = ActsAsSourceable::RegistryEntry
           .select("#{ActsAsSourceable::RegistryEntry.table_name}.id")
@@ -161,11 +161,11 @@ module ActsAsSourceable
           .joins("LEFT OUTER JOIN #{sourceable_table_name} ON #{sourceable_table_name}.id = #{ActsAsSourceable::RegistryEntry.table_name}.sourceable_id")
           .where("#{sourceable_table_name}.id IS NULL").to_sql
 
-        ActsAsSourceable::RegistryEntry.delete_all("id IN (#{sourceable_id_sql})")
+        ActsAsSourceable::RegistryEntry.where("id IN (#{sourceable_id_sql})").delete_all
       end
 
       # Remove all registry entries where the source is gone
-      ActsAsSourceable::RegistryEntry.uniq.pluck(:source_type).each do |source_type|
+      ActsAsSourceable::RegistryEntry.distinct.pluck(:source_type).each do |source_type|
         source_class = source_type.constantize
         source_table_name = source_class.table_name
         source_id_sql = ActsAsSourceable::RegistryEntry

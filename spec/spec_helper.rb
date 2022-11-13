@@ -2,6 +2,7 @@ $LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
 require 'logger'
 require 'active_record'
 require 'acts_as_sourceable'
+require 'pry-byebug'
 
 ActiveRecord::Base.logger = Logger.new(STDOUT)
 ActiveRecord::Base.logger.level = Logger::INFO
@@ -10,8 +11,8 @@ ActiveRecord::Base.establish_connection(:adapter => "sqlite3", :database => ':me
 ActiveRecord::Schema.define(:version => 0) do
 
   create_table :acts_as_sourceable_registry, :force => true do |t|
-    t.belongs_to :sourceable, :polymorphic => true
-    t.belongs_to :source, :polymorphic => true
+    t.belongs_to :sourceable, :polymorphic => true, :index => { :name => "aas_registry_sourceable" }
+    t.belongs_to :source, :polymorphic => true, :index => { :name => "aas_registry_source" }
     t.timestamps
   end
 

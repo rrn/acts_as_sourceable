@@ -35,7 +35,7 @@ describe 'acts_as_sourceable' do
         Item.delete(item)
         ActsAsSourceable::HelperMethods.garbage_collect
 
-        record.reload.sourced?.should be_false
+        record.reload.sourced?.should be false
       end
 
       it "should remove registry entries whose sourceable has been deleted" do
@@ -45,7 +45,7 @@ describe 'acts_as_sourceable' do
         SourceableRecord.delete(record.id)
         ActsAsSourceable::HelperMethods.garbage_collect
 
-        ActsAsSourceable::RegistryEntry.where(:sourceable_type => SourceableRecord, :sourceable_id => record.id).exists?.should be_false
+        ActsAsSourceable::RegistryEntry.where(:sourceable_type => SourceableRecord.class.name, :sourceable_id => record.id).exists?.should be false
       end
     end
   end
@@ -163,13 +163,13 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not be readonly when fetched through the unsourced scope" do
-      @klass.unsourced.first.readonly?.should be_false
+      @klass.unsourced.first.readonly?.should be false
     end
 
     it "should not be readonly when fetched through the sourced_by scope" do
       @record.add_source(@item1, @holding_institution)
 
-      @klass.sourced_by(@item1).first.readonly?.should be_false
+      @klass.sourced_by(@item1).first.readonly?.should be false
     end
 
     # RELATIONS
@@ -205,11 +205,11 @@ describe 'acts_as_sourceable' do
       @record.add_source(@holding_institution)
       @record.destroy
 
-      ActsAsSourceable::RegistryEntry.where(:sourceable_id => @record.id, :sourceable_type => @record.class).exists?.should be_false
+      ActsAsSourceable::RegistryEntry.where(:sourceable_id => @record.id, :sourceable_type => @record.class.name).exists?.should be false
     end
 
     it "should not be able to add a model other than and Item, Collection, or Holding Institution as a source" do
-      pending
+      skip
     end
   end
 
@@ -244,15 +244,15 @@ describe 'acts_as_sourceable' do
     end
 
     it "should not be readonly when fetched through a scope" do
-      @klass.unsourced.first.readonly?.should be_false
+      @klass.unsourced.first.readonly?.should be false
     end
 
     it "should not be readonly when fetched through the sourced_by scope" do
-      @klass.sourced_by(@item1).first.readonly?.should be_false
+      @klass.sourced_by(@item1).first.readonly?.should be false
     end
 
     it "should not return items that are source by a record with the same id, but of a different class" do
-      pending
+      skip
     end
   end
 
@@ -265,35 +265,35 @@ describe 'acts_as_sourceable' do
     # CACHE COLUMN
 
     it "should update the cache_column when adding sources" do
-      @record.sourced.should be_false
+      @record.sourced.should be false
       @record.add_source(@holding_institution)
-      @record.sourced.should be_true
+      @record.sourced.should be true
     end
 
     it "should update the cache column when removing an only source" do
       @record.add_source(@holding_institution)
       @record.remove_source(@holding_institution)
-      @record.sourced.should be_false
+      @record.sourced.should be false
     end
 
     it "should not update the cache column when removing one of many sources" do
       @record.add_source(@holding_institution, @collection)
       @record.remove_source(@holding_institution)
-      @record.reload.sourced.should be_true
+      @record.reload.sourced.should be true
     end
 
     it "should be able to remove all sources on a class" do
       @record.add_source(@item1, @item2, @collection, @holding_institution)
       @klass.unsource
       @record.sources.should == []
-      @record.reload.sourced?.should be_false
+      @record.reload.sourced?.should be false
     end
 
     it "should be able to remove all sources on a relation" do
       @record.add_source(@item1, @item2, @collection, @holding_institution)
       @klass.sourced_by(@item1).unsource
       @record.sources.should == []
-      @record.reload.sourced?.should be_false
+      @record.reload.sourced?.should be false
     end
   end
 
