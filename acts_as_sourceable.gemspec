@@ -10,5 +10,5 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.files = Dir.glob("{lib}/**/*") + %w(README.md)
 
-  s.add_dependency('rails', '>= 4.2', '< 8')
+  s.add_dependency('rails', '>= 4.2', '< 9')
 end
